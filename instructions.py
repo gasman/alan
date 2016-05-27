@@ -17,6 +17,10 @@ class Instruction(object):
         return [(self.addr + self.length) & 0xffff]
 
     @property
+    def jump_target(self):
+        return None
+
+    @property
     def call_target(self):
         return None
 
@@ -469,6 +473,10 @@ class INC_RR(InstructionWithRegPair, InstructionWithNoParam):
 
 class JP_NN(InstructionWithWordParam):
     @property
+    def jump_target(self):
+        return self.param
+
+    @property
     def static_destination_addresses(self):
         return [self.param]
 
@@ -480,6 +488,10 @@ class JP_NN(InstructionWithWordParam):
 
 
 class JP_C_NN(InstructionWithCondition, InstructionWithWordParam):
+    @property
+    def jump_target(self):
+        return self.param
+
     @property
     def static_destination_addresses(self):
         return [

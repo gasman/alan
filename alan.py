@@ -8,6 +8,7 @@ mem = bytearray(0x10000)
 instructions_by_address = {}
 origins_by_address = defaultdict(set)
 destinations_by_address = defaultdict(set)
+jump_targets = set()
 
 
 class Routine(object):
@@ -16,7 +17,7 @@ class Routine(object):
         self.calls = []
         self.is_traced = False
         self.exit_points = set()
-        self.instruction_count = None
+        self.instructions = []
 
 routines = {}
 
@@ -34,6 +35,7 @@ def trace_routine(start_addr):
         visited_addresses.add(addr)
 
         instruction = get_instruction(mem, addr)
+        routine.instructions.append(instruction)
         print(instruction)
 
         is_previously_traced = addr in instructions_by_address
@@ -44,6 +46,9 @@ def trace_routine(start_addr):
         if instruction.is_routine_exit:
             # TODO: check that stack is balanced
             routine.exit_points.add(instruction)
+
+        if instruction.jump_target is not None:
+            jump_targets.add(instruction.jump_target)
 
         for dest in instruction.static_destination_addresses:
             if not is_previously_traced:
@@ -88,7 +93,7 @@ def trace_routine(start_addr):
                 print("Subroutine does not exit; not continuing to trace from its return address")
 
     routine.is_traced = True
-    routine.instruction_count = len(visited_addresses)
+    routine.instructions.sort(key=lambda inst:inst.addr)
     print("Completed trace from %04x." % start_addr)
     return routine
 
@@ -151,8 +156,10 @@ print("Routines:")
 
 for addr, routine in sorted(routines.items()):
     calls = ', '.join(["0x%04x" % dest for dest in routine.calls])
-    print("0x%04x - %d instructions, calls %s" % (addr, routine.instruction_count, calls))
+    print("0x%04x - %d instructions, calls %s" % (addr, len(routine.instructions), calls))
 
 
 # print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
 # print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
+
+print(jump_targets)
