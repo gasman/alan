@@ -16,6 +16,7 @@ class Routine(object):
         self.calls = []
         self.is_traced = False
         self.exit_points = set()
+        self.instruction_count = None
 
 routines = {}
 
@@ -62,6 +63,8 @@ def trace_routine(start_addr):
                 addresses_to_trace.append(dest)
 
         if instruction.call_target is not None:
+            routine.calls.append(instruction.call_target)
+
             if instruction.call_target in routines:
                 subroutine = routines[instruction.call_target]
                 if not subroutine.is_traced:
@@ -85,6 +88,7 @@ def trace_routine(start_addr):
                 print("Subroutine does not exit; not continuing to trace from its return address")
 
     routine.is_traced = True
+    routine.instruction_count = len(visited_addresses)
     print("Completed trace from %04x." % start_addr)
     return routine
 
@@ -130,14 +134,25 @@ with open('shatners_bassoon.stc', 'rb') as f:
 trace_routine(0x4000)
 trace_routine(0x4006)
 
-print("Trace complete:")
+print("Trace complete.")
 
 for addr, instruction in sorted(instructions_by_address.items()):
-    origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
-    destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
-    print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
-    print("Needs to evaluate", get_used_results(instruction), 'from', instruction.overwrites)
+    instruction.used_results = get_used_results(instruction)
+
+    print(instruction)
+
+    # origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
+    # destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
+    # print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
+    # print("Needs to evaluate", instruction.used_results, 'from', instruction.overwrites)
 
 
-print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
-print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
+print("Routines:")
+
+for addr, routine in sorted(routines.items()):
+    calls = ', '.join(["0x%04x" % dest for dest in routine.calls])
+    print("0x%04x - %d instructions, calls %s" % (addr, routine.instruction_count, calls))
+
+
+# print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
+# print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])

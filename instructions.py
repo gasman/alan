@@ -10,6 +10,7 @@ class Instruction(object):
 
     def __init__(self, mem, addr):
         self.addr = addr
+        self.used_results = None
 
     @property
     def static_destination_addresses(self):
