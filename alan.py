@@ -61,14 +61,15 @@ def trace_routine(start_addr):
         addr = addresses_to_trace.pop()
         visited_addresses.add(addr)
 
-        instruction = get_instruction(mem, addr)
+        is_previously_traced = addr in instructions_by_address
+        if is_previously_traced:
+            instruction = instructions_by_address[addr]
+        else:
+            instruction = get_instruction(mem, addr)
+            instructions_by_address[addr] = instruction
+
         routine.instructions.append(instruction)
         print(instruction)
-
-        is_previously_traced = addr in instructions_by_address
-
-        if not is_previously_traced:
-            instructions_by_address[addr] = instruction
 
         if instruction.is_routine_exit:
             # TODO: check that stack is balanced
@@ -171,10 +172,10 @@ print("Trace complete.")
 for addr, instruction in sorted(instructions_by_address.items()):
     instruction.used_results = get_used_results(instruction)
 
-    # origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
-    # destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
-    # print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
-    # print("Needs to evaluate", instruction.used_results, 'from', instruction.overwrites)
+    origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
+    destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
+    print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
+    print("Needs to evaluate", instruction.used_results, 'from', instruction.overwrites)
 
 
 print("Routines:")
@@ -189,3 +190,4 @@ for addr, routine in sorted(routines.items()):
 
 print(routines[0x40af].to_javascript())
 print(routines[0x40b5].to_javascript())
+print(routines[0x40ba].to_javascript())
