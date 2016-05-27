@@ -89,6 +89,33 @@ def trace_routine(start_addr):
     return routine
 
 
+def result_is_used(instruction, var):
+    addresses_to_trace = set(destinations_by_address[instruction.addr])
+    visited_addresses = set()
+
+    while addresses_to_trace:
+        addr = addresses_to_trace.pop()
+        visited_addresses.add(addr)
+        instruction = instructions_by_address[addr]
+        if var in instruction.uses:
+            return True
+
+        if var not in instruction.overwrites:
+            # continue tracing past this instruction
+            for dest in destinations_by_address[addr]:
+                if dest not in visited_addresses:
+                    addresses_to_trace.add(dest)
+
+    # exhausted all addresses without finding one that uses this result
+    return False
+
+
+def get_used_results(instruction):
+    return set(
+        var for var in instruction.overwrites
+        if result_is_used(instruction, var)
+    )
+
 i = 0x4000
 with open('stc_player.bin', 'rb') as f:
     for byte in bytearray(f.read()):
@@ -109,8 +136,7 @@ for addr, instruction in sorted(instructions_by_address.items()):
     origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
     destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
     print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
-    print("Uses", instruction.uses)
-    print("Overwrites", instruction.overwrites)
+    print("Needs to evaluate", get_used_results(instruction), 'from', instruction.overwrites)
 
 
 print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
