@@ -109,6 +109,8 @@ for addr, instruction in sorted(instructions_by_address.items()):
     origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
     destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
     print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
+    print("Uses", instruction.uses)
+    print("Overwrites", instruction.overwrites)
 
 
 print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])

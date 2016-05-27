@@ -189,39 +189,98 @@ class ExtendedInstructionWithWordParam(Instruction):
         return (self.hi << 8) | self.lo
 
 
+REGS_FROM_PAIR = {
+    'BC': ('B', 'C'),
+    'DE': ('D', 'E'),
+    'HL': ('H', 'L'),
+    'IX': ('IXH', 'IXL'),
+    'IY': ('IYH', 'IYL'),
+}
+
+FLAG_FROM_CONDITION = {
+    'C': 'C-flag',
+    'NC': 'C-flag',
+    'Z': 'Z-flag',
+    'NZ': 'Z-flag',
+    'PO': 'PV-flag',
+    'PE': 'PV-flag',
+    'P': 'S-flag',
+    'M': 'S-flag',
+}
+
+
 class ADD_A_iHLi(InstructionWithNoParam):
     def asm_repr(self):
         return "ADD A,(HL)"
+
+    uses = {'A', 'H', 'L'}
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class ADD_A_N(InstructionWithByteParam):
     def asm_repr(self):
         return "ADD A,0x%02x" % self.param
 
+    uses = {'A'}
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class ADD_A_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "ADD A,%s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg}
+
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class ADD_HL_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "ADD HL,%s" % self.reg_pair
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {'H', 'L', h, l}
+
+    overwrites = {'H', 'L', 'C-flag'}
+
 
 class ADD_IXIY_RR(InstructionWithTwoRegPairs, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "ADD %s,%s" % (self.rp1, self.rp2)
+
+    @property
+    def uses(self):
+        h1, l1 = REGS_FROM_PAIR[self.rp1]
+        h2, l2 = REGS_FROM_PAIR[self.rp2]
+        return {h1, l1, h2, l2}
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.rp1]
+        return {h, l, 'C-flag'}
 
 
 class AND_N(InstructionWithByteParam):
     def asm_repr(self):
         return "AND 0x%02x" % self.param
 
+    uses = {'A'}
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class AND_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "AND %s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg}
+
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class BIT_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWithOffsetParam):
@@ -231,10 +290,23 @@ class BIT_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWith
         else:
             return "BIT %d,(%s+0x%02x)" % (self.bit, self.reg_pair, self.offset)
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = {'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class BIT_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "BIT %d,%s" % (self.bit, self.reg)
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    overwrites = {'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class CALL_NN(InstructionWithWordParam):
@@ -252,6 +324,9 @@ class CALL_NN(InstructionWithWordParam):
 
     def asm_repr(self):
         return "CALL 0x%04x" % self.param
+
+    uses = set()
+    overwrites = set()
 
 
 class CALL_C_NN(InstructionWithCondition, InstructionWithWordParam):
@@ -273,15 +348,27 @@ class CALL_C_NN(InstructionWithCondition, InstructionWithWordParam):
     def asm_repr(self):
         return "CALL %s,0x%04x" % (self.condition, self.param)
 
+    @property
+    def uses(self):
+        return {FLAG_FROM_CONDITION[self.condition]}
+
+    overwrites = set()
+
 
 class CP_iHLi(InstructionWithNoParam):
     def asm_repr(self):
         return "CP (HL)"
 
+    uses = {'A', 'H', 'L'}
+    overwrites = {'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class CP_N(InstructionWithByteParam):
     def asm_repr(self):
         return "CP 0x%02x" % self.param
+
+    uses = {'A'}
+    overwrites = {'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
@@ -291,40 +378,92 @@ class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
         else:
             return "DEC (%s+0x%02x)" % (self.reg_pair, self.offset)
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = {'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class DEC_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "DEC %s" % self.reg
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class DEC_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "DEC %s" % self.reg_pair
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
 
 class DI(InstructionWithNoParam):
     def asm_repr(self):
         return "DI"
+
+    uses = set()
+    overwrites = set()
 
 
 class EI(InstructionWithNoParam):
     def asm_repr(self):
         return "EI"
 
+    uses = set()
+    overwrites = set()
+
 
 class EX_DE_HL(InstructionWithNoParam):
     def asm_repr(self):
         return "EX DE,HL"
+
+    uses = {'D', 'E', 'H', 'L'}
+    overwrites = {'D', 'E', 'H', 'L'}
 
 
 class INC_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "INC %s" % self.reg
 
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class INC_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "INC %s" % self.reg_pair
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
 
 
 class JP_NN(InstructionWithWordParam):
@@ -334,6 +473,9 @@ class JP_NN(InstructionWithWordParam):
 
     def asm_repr(self):
         return "JP 0x%04x" % self.param
+
+    uses = set()
+    overwrites = set()
 
 
 class JP_C_NN(InstructionWithCondition, InstructionWithWordParam):
@@ -347,6 +489,12 @@ class JP_C_NN(InstructionWithCondition, InstructionWithWordParam):
     def asm_repr(self):
         return "JP %s,0x%04x" % (self.condition, self.param)
 
+    @property
+    def uses(self):
+        return {FLAG_FROM_CONDITION[self.condition]}
+
+    overwrites = set()
+
 
 class JR_NN(InstructionWithOffsetParam):
     @property
@@ -359,6 +507,9 @@ class JR_NN(InstructionWithOffsetParam):
 
     def asm_repr(self):
         return "JR 0x%04x" % self.jump_target
+
+    uses = set()
+    overwrites = set()
 
 
 class JR_C_NN(InstructionWithCondition, InstructionWithOffsetParam):
@@ -376,20 +527,43 @@ class JR_C_NN(InstructionWithCondition, InstructionWithOffsetParam):
     def asm_repr(self):
         return "JR %s,0x%04x" % (self.condition, self.jump_target)
 
+    @property
+    def uses(self):
+        return {FLAG_FROM_CONDITION[self.condition]}
+
+    overwrites = set()
+
 
 class LD_A_iNNi(InstructionWithWordParam):
     def asm_repr(self):
         return "LD A,(0x%04x)" % self.param
+
+    uses = set()
+    overwrites = {'A'}
 
 
 class LD_A_iRRi(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "LD A,(%s)" % self.reg_pair
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = {'A'}
+
 
 class LD_BCDE_iNNi(InstructionWithRegPair, ExtendedInstructionWithWordParam):
     def asm_repr(self):
         return "LD %s,(0x%04x)" % (self.reg_pair, self.param)
+
+    uses = set()
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
 
 
 class LD_iIXIYpNi_N(InstructionWithRegPair, ExtendedInstructionWithOffsetAndByteParams):
@@ -399,6 +573,13 @@ class LD_iIXIYpNi_N(InstructionWithRegPair, ExtendedInstructionWithOffsetAndByte
         else:
             return "LD (%s+0x%02x),0x%02x" % (self.reg_pair, self.offset, self.param)
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = set()
+
 
 class LD_iIXIYpNi_R(InstructionWithRegAndRegPair, ExtendedInstructionWithOffsetParam):
     def asm_repr(self):
@@ -407,40 +588,83 @@ class LD_iIXIYpNi_R(InstructionWithRegAndRegPair, ExtendedInstructionWithOffsetP
         else:
             return "LD (%s+0x%02x),%s" % (self.reg_pair, self.offset, self.reg)
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l, self.reg}
+
+    overwrites = set()
+
 
 class LD_HL_iNNi(InstructionWithWordParam):
     def asm_repr(self):
         return "LD HL,(0x%04x)" % self.param
+
+    uses = set()
+    overwrites = {'H', 'L'}
 
 
 class LD_iHLi_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "LD (HL),%s" % self.reg
 
+    @property
+    def uses(self):
+        return {'H', 'L', self.reg}
+
+    overwrites = set()
+
 
 class LD_iNNi_A(InstructionWithWordParam):
     def asm_repr(self):
         return "LD (0x%04x),A" % self.param
+
+    uses = {'A'}
+    overwrites = set()
 
 
 class LD_iNNi_BCDE(InstructionWithRegPair, ExtendedInstructionWithWordParam):
     def asm_repr(self):
         return "LD (0x%04x),%s" % (self.param, self.reg_pair)
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = set()
+
 
 class LD_iNNi_HL(InstructionWithWordParam):
     def asm_repr(self):
         return "LD (0x%04x),HL" % self.param
+
+    uses = {'H', 'L'}
+    overwrites = set()
 
 
 class LD_IXIY_iNNi(InstructionWithRegPair, ExtendedInstructionWithWordParam):
     def asm_repr(self):
         return "LD %s,(0x%04x)" % (self.reg_pair, self.param)
 
+    uses = set()
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
 
 class LD_IXIY_NN(InstructionWithRegPair, ExtendedInstructionWithWordParam):
     def asm_repr(self):
         return "LD %s,0x%04x" % (self.reg_pair, self.param)
+
+    uses = set()
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
 
 
 class LD_R_iIXIYpNi(InstructionWithRegAndRegPair, ExtendedInstructionWithOffsetParam):
@@ -450,65 +674,150 @@ class LD_R_iIXIYpNi(InstructionWithRegAndRegPair, ExtendedInstructionWithOffsetP
         else:
             return "LD %s,(%s+0x%02x)" % (self.reg, self.reg_pair, self.offset)
 
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    @property
+    def overwrites(self):
+        return {self.reg}
+
 
 class LD_R_iHLi(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "LD %s,(HL)" % self.reg
+
+    uses = {'H', 'L'}
+
+    @property
+    def overwrites(self):
+        return {self.reg}
 
 
 class LD_R_N(InstructionWithReg, InstructionWithByteParam):
     def asm_repr(self):
         return "LD %s,0x%02x" % (self.reg, self.param)
 
+    uses = set()
+
+    @property
+    def overwrites(self):
+        return {self.reg}
+
 
 class LD_R_R(InstructionWithTwoRegs, InstructionWithNoParam):
     def asm_repr(self):
         return "LD %s,%s" % (self.r1, self.r2)
+
+    @property
+    def uses(self):
+        return {self.r2}
+
+    @property
+    def overwrites(self):
+        return {self.r1}
 
 
 class LD_RR_NN(InstructionWithRegPair, InstructionWithWordParam):
     def asm_repr(self):
         return "LD %s,0x%04x" % (self.reg_pair, self.param)
 
+    uses = set()
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
 
 class LDIR(ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "LDIR"
+
+    uses = {'B', 'C', 'D', 'E', 'H', 'L'}
+    overwrites = {'B', 'C', 'D', 'E', 'H', 'L', 'PV-flag'}
 
 
 class OR_iHLi(InstructionWithNoParam):
     def asm_repr(self):
         return "OR (HL)"
 
+    uses = {'A', 'H', 'L'}
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class OR_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "OR %s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg}
+
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class OUT_iCi_R(InstructionWithReg, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "OUT (C),%s" % self.reg
 
+    @property
+    def uses(self):
+        return {'B', 'C', self.reg}
+
+    overwrites = set()
+
 
 class OUTD(ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "OUTD"
+
+    uses = {'B', 'C', 'H', 'L'}
+    overwrites = {'B', 'H', 'L', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class POP_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "POP %s" % self.reg_pair
 
+    uses = set()
+
+    @property
+    def overwrites(self):
+        if self.reg_pair == 'AF':
+            return {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+        else:
+            h, l = REGS_FROM_PAIR[self.reg_pair]
+            return {h, l}
+
 
 class PUSH_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "PUSH %s" % self.reg_pair
 
+    @property
+    def uses(self):
+        if self.reg_pair == 'AF':
+            return {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+        else:
+            h, l = REGS_FROM_PAIR[self.reg_pair]
+            return {h, l}
+
+    overwrites = set()
+
 
 class RES_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "RES %d,%s" % (self.bit, self.reg)
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg}
 
 
 class RET(InstructionWithNoParam):
@@ -521,6 +830,9 @@ class RET(InstructionWithNoParam):
     def asm_repr(self):
         return "RET"
 
+    uses = set()
+    overwrites = set()
+
 
 class RET_C(InstructionWithCondition, InstructionWithNoParam):
     is_routine_exit = True
@@ -528,40 +840,84 @@ class RET_C(InstructionWithCondition, InstructionWithNoParam):
     def asm_repr(self):
         return "RET %s" % self.condition
 
+    @property
+    def uses(self):
+        return {FLAG_FROM_CONDITION[self.condition]}
+
+    overwrites = set()
+
 
 class RLC_R(InstructionWithReg, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "RLC %s" % self.reg
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class RRCA(InstructionWithNoParam):
     def asm_repr(self):
         return "RRCA"
 
+    uses = {'A'}
+    overwrites = {'A', 'C-flag'}
+
 
 class SBC_HL_RR(InstructionWithRegPair, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "SBC HL,%s" % self.reg_pair
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {'H', 'L', h, l, 'C-flag'}
+
+    overwrites = {'H', 'L', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 class SET_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "SET %d,(HL)" % self.bit
 
+    uses = {'H', 'L'}
+    overwrites = set()
+
 
 class SET_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "SET %d,%s" % (self.bit, self.reg)
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg}
 
 
 class SUB_N(InstructionWithByteParam):
     def asm_repr(self):
         return "SUB 0x%02x" % self.param
 
+    uses = {'A'}
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+
 
 class XOR_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
         return "XOR %s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg}
+
+    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
 
 
 INSTRUCTIONS_BY_CB_OPCODE = {
