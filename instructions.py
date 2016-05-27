@@ -27,6 +27,12 @@ class Instruction(object):
     def __str__(self):
         return "0x%04x: %s" % (self.addr, self.asm_repr())
 
+    def to_javascript(self):
+        raise NotImplementedError(
+            "No to_javascript implementation for %s with used results %r" %
+            (self, self.used_results)
+        )
+
 
 class InstructionWithReg(Instruction):
     def __init__(self, reg, mem, addr):
@@ -203,14 +209,14 @@ REGS_FROM_PAIR = {
 }
 
 FLAG_FROM_CONDITION = {
-    'C': 'C-flag',
-    'NC': 'C-flag',
-    'Z': 'Z-flag',
-    'NZ': 'Z-flag',
-    'PO': 'PV-flag',
-    'PE': 'PV-flag',
-    'P': 'S-flag',
-    'M': 'S-flag',
+    'C': ('cFlag', True),
+    'NC': ('cFlag', False),
+    'Z': ('zFlag', True),
+    'NZ': ('zFlag', False),
+    'PO': ('pvFlag', False),
+    'PE': ('pvFlag', True),
+    'P': ('sFlag', False),
+    'M': ('sFlag', True),
 }
 
 
@@ -219,7 +225,7 @@ class ADD_A_iHLi(InstructionWithNoParam):
         return "ADD A,(HL)"
 
     uses = {'A', 'H', 'L'}
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class ADD_A_N(InstructionWithByteParam):
@@ -227,7 +233,7 @@ class ADD_A_N(InstructionWithByteParam):
         return "ADD A,0x%02x" % self.param
 
     uses = {'A'}
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class ADD_A_R(InstructionWithReg, InstructionWithNoParam):
@@ -238,7 +244,7 @@ class ADD_A_R(InstructionWithReg, InstructionWithNoParam):
     def uses(self):
         return {'A', self.reg}
 
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class ADD_HL_RR(InstructionWithRegPair, InstructionWithNoParam):
@@ -250,7 +256,13 @@ class ADD_HL_RR(InstructionWithRegPair, InstructionWithNoParam):
         h, l = REGS_FROM_PAIR[self.reg_pair]
         return {'H', 'L', h, l}
 
-    overwrites = {'H', 'L', 'C-flag'}
+    overwrites = {'H', 'L', 'cFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'H', 'L'}:
+            return "rp[HL] += rp[%s];" % self.reg_pair
+        else:
+            super(CP_iHLi, self).to_javascript()
 
 
 class ADD_IXIY_RR(InstructionWithTwoRegPairs, ExtendedInstructionWithNoParam):
@@ -266,7 +278,7 @@ class ADD_IXIY_RR(InstructionWithTwoRegPairs, ExtendedInstructionWithNoParam):
     @property
     def overwrites(self):
         h, l = REGS_FROM_PAIR[self.rp1]
-        return {h, l, 'C-flag'}
+        return {h, l, 'cFlag'}
 
 
 class AND_N(InstructionWithByteParam):
@@ -274,7 +286,7 @@ class AND_N(InstructionWithByteParam):
         return "AND 0x%02x" % self.param
 
     uses = {'A'}
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class AND_R(InstructionWithReg, InstructionWithNoParam):
@@ -285,7 +297,7 @@ class AND_R(InstructionWithReg, InstructionWithNoParam):
     def uses(self):
         return {'A', self.reg}
 
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class BIT_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWithOffsetParam):
@@ -300,7 +312,7 @@ class BIT_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWith
         h, l = REGS_FROM_PAIR[self.reg_pair]
         return {h, l}
 
-    overwrites = {'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'zFlag', 'pvFlag', 'sFlag'}
 
 
 class BIT_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
@@ -311,7 +323,7 @@ class BIT_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
     def uses(self):
         return {self.reg}
 
-    overwrites = {'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'zFlag', 'pvFlag', 'sFlag'}
 
 
 class CALL_NN(InstructionWithWordParam):
@@ -355,7 +367,8 @@ class CALL_C_NN(InstructionWithCondition, InstructionWithWordParam):
 
     @property
     def uses(self):
-        return {FLAG_FROM_CONDITION[self.condition]}
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        return {flag}
 
     overwrites = set()
 
@@ -365,7 +378,13 @@ class CP_iHLi(InstructionWithNoParam):
         return "CP (HL)"
 
     uses = {'A', 'H', 'L'}
-    overwrites = {'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'zFlag'}:
+            return "zFlag = (r[A] == mem[rp[HL]]);"
+        else:
+            super(CP_iHLi, self).to_javascript()
 
 
 class CP_N(InstructionWithByteParam):
@@ -373,7 +392,7 @@ class CP_N(InstructionWithByteParam):
         return "CP 0x%02x" % self.param
 
     uses = {'A'}
-    overwrites = {'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
@@ -388,7 +407,7 @@ class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
         h, l = REGS_FROM_PAIR[self.reg_pair]
         return {h, l}
 
-    overwrites = {'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'zFlag', 'pvFlag', 'sFlag'}
 
 
 class DEC_R(InstructionWithReg, InstructionWithNoParam):
@@ -401,7 +420,7 @@ class DEC_R(InstructionWithReg, InstructionWithNoParam):
 
     @property
     def overwrites(self):
-        return {self.reg, 'Z-flag', 'PV-flag', 'S-flag'}
+        return {self.reg, 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class DEC_RR(InstructionWithRegPair, InstructionWithNoParam):
@@ -453,7 +472,7 @@ class INC_R(InstructionWithReg, InstructionWithNoParam):
 
     @property
     def overwrites(self):
-        return {self.reg, 'Z-flag', 'PV-flag', 'S-flag'}
+        return {self.reg, 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class INC_RR(InstructionWithRegPair, InstructionWithNoParam):
@@ -486,6 +505,9 @@ class JP_NN(InstructionWithWordParam):
     uses = set()
     overwrites = set()
 
+    def to_javascript(self):
+        return "pc = 0x%04x; break;" % self.param
+
 
 class JP_C_NN(InstructionWithCondition, InstructionWithWordParam):
     @property
@@ -504,7 +526,8 @@ class JP_C_NN(InstructionWithCondition, InstructionWithWordParam):
 
     @property
     def uses(self):
-        return {FLAG_FROM_CONDITION[self.condition]}
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        return {flag}
 
     overwrites = set()
 
@@ -542,7 +565,8 @@ class JR_C_NN(InstructionWithCondition, InstructionWithOffsetParam):
 
     @property
     def uses(self):
-        return {FLAG_FROM_CONDITION[self.condition]}
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        return {flag}
 
     overwrites = set()
 
@@ -749,7 +773,7 @@ class LDIR(ExtendedInstructionWithNoParam):
         return "LDIR"
 
     uses = {'B', 'C', 'D', 'E', 'H', 'L'}
-    overwrites = {'B', 'C', 'D', 'E', 'H', 'L', 'PV-flag'}
+    overwrites = {'B', 'C', 'D', 'E', 'H', 'L', 'pvFlag'}
 
 
 class OR_iHLi(InstructionWithNoParam):
@@ -757,7 +781,7 @@ class OR_iHLi(InstructionWithNoParam):
         return "OR (HL)"
 
     uses = {'A', 'H', 'L'}
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class OR_R(InstructionWithReg, InstructionWithNoParam):
@@ -768,7 +792,7 @@ class OR_R(InstructionWithReg, InstructionWithNoParam):
     def uses(self):
         return {'A', self.reg}
 
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class OUT_iCi_R(InstructionWithReg, ExtendedInstructionWithNoParam):
@@ -787,7 +811,7 @@ class OUTD(ExtendedInstructionWithNoParam):
         return "OUTD"
 
     uses = {'B', 'C', 'H', 'L'}
-    overwrites = {'B', 'H', 'L', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'B', 'H', 'L', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class POP_RR(InstructionWithRegPair, InstructionWithNoParam):
@@ -799,7 +823,7 @@ class POP_RR(InstructionWithRegPair, InstructionWithNoParam):
     @property
     def overwrites(self):
         if self.reg_pair == 'AF':
-            return {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+            return {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
         else:
             h, l = REGS_FROM_PAIR[self.reg_pair]
             return {h, l}
@@ -812,7 +836,7 @@ class PUSH_RR(InstructionWithRegPair, InstructionWithNoParam):
     @property
     def uses(self):
         if self.reg_pair == 'AF':
-            return {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+            return {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
         else:
             h, l = REGS_FROM_PAIR[self.reg_pair]
             return {h, l}
@@ -855,9 +879,17 @@ class RET_C(InstructionWithCondition, InstructionWithNoParam):
 
     @property
     def uses(self):
-        return {FLAG_FROM_CONDITION[self.condition]}
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        return {flag}
 
     overwrites = set()
+
+    def to_javascript(self):
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        if sense:
+            return "if (%s) return;" % flag
+        else:
+            return "if (!%s) return;" % flag
 
 
 class RLC_R(InstructionWithReg, ExtendedInstructionWithNoParam):
@@ -870,7 +902,7 @@ class RLC_R(InstructionWithReg, ExtendedInstructionWithNoParam):
 
     @property
     def overwrites(self):
-        return {self.reg, 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+        return {self.reg, 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class RRCA(InstructionWithNoParam):
@@ -878,7 +910,7 @@ class RRCA(InstructionWithNoParam):
         return "RRCA"
 
     uses = {'A'}
-    overwrites = {'A', 'C-flag'}
+    overwrites = {'A', 'cFlag'}
 
 
 class SBC_HL_RR(InstructionWithRegPair, ExtendedInstructionWithNoParam):
@@ -888,9 +920,9 @@ class SBC_HL_RR(InstructionWithRegPair, ExtendedInstructionWithNoParam):
     @property
     def uses(self):
         h, l = REGS_FROM_PAIR[self.reg_pair]
-        return {'H', 'L', h, l, 'C-flag'}
+        return {'H', 'L', h, l, 'cFlag'}
 
-    overwrites = {'H', 'L', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'H', 'L', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class SET_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
@@ -919,7 +951,7 @@ class SUB_N(InstructionWithByteParam):
         return "SUB 0x%02x" % self.param
 
     uses = {'A'}
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class XOR_R(InstructionWithReg, InstructionWithNoParam):
@@ -930,7 +962,7 @@ class XOR_R(InstructionWithReg, InstructionWithNoParam):
     def uses(self):
         return {'A', self.reg}
 
-    overwrites = {'A', 'C-flag', 'Z-flag', 'PV-flag', 'S-flag'}
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 INSTRUCTIONS_BY_CB_OPCODE = {

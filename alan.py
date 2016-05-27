@@ -1,4 +1,5 @@
 from collections import defaultdict
+import re
 
 from instructions import get_instruction
 
@@ -18,6 +19,32 @@ class Routine(object):
         self.is_traced = False
         self.exit_points = set()
         self.instructions = []
+
+    def to_javascript(self):
+        print("function r%04x() {" % self.start_addr)
+
+        has_jumps = any(
+            instruction.addr in jump_targets for instruction in self.instructions
+        )
+
+        if has_jumps:
+            print("\tvar pc = 0x%04x;" % self.start_addr)
+            print("\twhile (true) {\n\t\tswitch (pc) {")
+
+            for instruction in self.instructions:
+                if instruction.addr in jump_targets or instruction.addr == self.start_addr:
+                    print("\t\t\tcase 0x%04x:" % instruction.addr)
+
+                code = instruction.to_javascript()
+                print(re.sub(r'^', '\t\t\t\t', code, flags=re.MULTILINE))
+
+            print('\t\t}\n\t}')
+        else:
+            for instruction in self.instructions:
+                code = instruction.to_javascript()
+                print(re.sub(r'^', '\t\t', code, flags=re.MULTILINE))
+
+        print("}")
 
 routines = {}
 
@@ -144,8 +171,6 @@ print("Trace complete.")
 for addr, instruction in sorted(instructions_by_address.items()):
     instruction.used_results = get_used_results(instruction)
 
-    print(instruction)
-
     # origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
     # destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
     # print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
@@ -162,4 +187,4 @@ for addr, routine in sorted(routines.items()):
 # print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
 # print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
 
-print(jump_targets)
+print(routines[0x40af].to_javascript())
