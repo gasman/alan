@@ -42,7 +42,7 @@ class Routine(object):
         else:
             for instruction in self.instructions:
                 code = instruction.to_javascript()
-                print(re.sub(r'^', '\t\t', code, flags=re.MULTILINE))
+                print(re.sub(r'^', '\t', code, flags=re.MULTILINE))
 
         print("}")
 
@@ -188,3 +188,4 @@ for addr, routine in sorted(routines.items()):
 # print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
 
 print(routines[0x40af].to_javascript())
+print(routines[0x40b5].to_javascript())

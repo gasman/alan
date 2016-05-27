@@ -262,7 +262,7 @@ class ADD_HL_RR(InstructionWithRegPair, InstructionWithNoParam):
         if self.used_results == {'H', 'L'}:
             return "rp[HL] += rp[%s];" % self.reg_pair
         else:
-            super(CP_iHLi, self).to_javascript()
+            super(ADD_HL_RR, self).to_javascript()
 
 
 class ADD_IXIY_RR(InstructionWithTwoRegPairs, ExtendedInstructionWithNoParam):
@@ -461,6 +461,12 @@ class EX_DE_HL(InstructionWithNoParam):
     uses = {'D', 'E', 'H', 'L'}
     overwrites = {'D', 'E', 'H', 'L'}
 
+    def to_javascript(self):
+        if self.used_results == {'D', 'E', 'H', 'L'}:
+            return "tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;"
+        else:
+            super(EX_DE_HL, self).to_javascript()
+
 
 class INC_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
@@ -488,6 +494,12 @@ class INC_RR(InstructionWithRegPair, InstructionWithNoParam):
     def overwrites(self):
         h, l = REGS_FROM_PAIR[self.reg_pair]
         return {h, l}
+
+    def to_javascript(self):
+        if self.used_results == self.overwrites:
+            return "rp[HL]++;"
+        else:
+            super(INC_RR, self).to_javascript()
 
 
 class JP_NN(InstructionWithWordParam):
@@ -731,6 +743,12 @@ class LD_R_iHLi(InstructionWithReg, InstructionWithNoParam):
     def overwrites(self):
         return {self.reg}
 
+    def to_javascript(self):
+        if self.used_results == {self.reg}:
+            return "r[%s] = mem[rp[HL]];" % self.reg
+        else:
+            super(LD_R_iHLi, self).to_javascript()
+
 
 class LD_R_N(InstructionWithReg, InstructionWithByteParam):
     def asm_repr(self):
@@ -766,6 +784,12 @@ class LD_RR_NN(InstructionWithRegPair, InstructionWithWordParam):
     def overwrites(self):
         h, l = REGS_FROM_PAIR[self.reg_pair]
         return {h, l}
+
+    def to_javascript(self):
+        if self.used_results == self.overwrites:
+            return "rp[%s] = 0x%04x;" % (self.reg_pair, self.param)
+        else:
+            super(LD_RR_NN, self).to_javascript()
 
 
 class LDIR(ExtendedInstructionWithNoParam):
@@ -869,6 +893,9 @@ class RET(InstructionWithNoParam):
 
     uses = set()
     overwrites = set()
+
+    def to_javascript(self):
+        return "return;"
 
 
 class RET_C(InstructionWithCondition, InstructionWithNoParam):
