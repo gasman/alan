@@ -191,3 +191,4 @@ for addr, routine in sorted(routines.items()):
 print(routines[0x40af].to_javascript())
 print(routines[0x40b5].to_javascript())
 print(routines[0x40ba].to_javascript())
+print(routines[0x441f].to_javascript())

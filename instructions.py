@@ -422,6 +422,12 @@ class DEC_R(InstructionWithReg, InstructionWithNoParam):
     def overwrites(self):
         return {self.reg, 'zFlag', 'pvFlag', 'sFlag'}
 
+    def to_javascript(self):
+        if self.used_results == {self.reg, 'sFlag'}:
+            return "r[%s]--; sFlag = !!(r[%s] & 0x80);" % (self.reg, self.reg)
+        else:
+            super(DEC_R, self).to_javascript()
+
 
 class DEC_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
@@ -436,6 +442,12 @@ class DEC_RR(InstructionWithRegPair, InstructionWithNoParam):
     def overwrites(self):
         h, l = REGS_FROM_PAIR[self.reg_pair]
         return {h, l}
+
+    def to_javascript(self):
+        if self.used_results == self.overwrites:
+            return "rp[%s]--;" % self.reg_pair
+        else:
+            super(DEC_RR, self).to_javascript()
 
 
 class DI(InstructionWithNoParam):
@@ -497,7 +509,7 @@ class INC_RR(InstructionWithRegPair, InstructionWithNoParam):
 
     def to_javascript(self):
         if self.used_results == self.overwrites:
-            return "rp[HL]++;"
+            return "rp[%s]++;" % self.reg_pair
         else:
             super(INC_RR, self).to_javascript()
 
@@ -543,6 +555,13 @@ class JP_C_NN(InstructionWithCondition, InstructionWithWordParam):
 
     overwrites = set()
 
+    def to_javascript(self):
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        if sense:
+            return "if (%s) {pc = 0x%04x; break;}" % (flag, self.jump_target)
+        else:
+            return "if (!%s) {pc = 0x%04x; break;}" % (flag, self.jump_target)
+
 
 class JR_NN(InstructionWithOffsetParam):
     @property
@@ -581,6 +600,13 @@ class JR_C_NN(InstructionWithCondition, InstructionWithOffsetParam):
         return {flag}
 
     overwrites = set()
+
+    def to_javascript(self):
+        flag, sense = FLAG_FROM_CONDITION[self.condition]
+        if sense:
+            return "if (%s) {pc = 0x%04x; break;}" % (flag, self.jump_target)
+        else:
+            return "if (!%s) {pc = 0x%04x; break;}" % (flag, self.jump_target)
 
 
 class LD_A_iNNi(InstructionWithWordParam):
@@ -760,6 +786,12 @@ class LD_R_N(InstructionWithReg, InstructionWithByteParam):
     def overwrites(self):
         return {self.reg}
 
+    def to_javascript(self):
+        if self.used_results == {self.reg}:
+            return "r[%s] = 0x%02x;" % (self.reg, self.param)
+        else:
+            super(LD_R_N, self).to_javascript()
+
 
 class LD_R_R(InstructionWithTwoRegs, InstructionWithNoParam):
     def asm_repr(self):
@@ -807,6 +839,12 @@ class OR_iHLi(InstructionWithNoParam):
     uses = {'A', 'H', 'L'}
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
+    def to_javascript(self):
+        if self.used_results == {'zFlag'}:
+            return "zFlag = (r[A] | mem[rp[HL]]) == 0;"
+        else:
+            super(OR_iHLi, self).to_javascript()
+
 
 class OR_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
@@ -829,6 +867,9 @@ class OUT_iCi_R(InstructionWithReg, ExtendedInstructionWithNoParam):
 
     overwrites = set()
 
+    def to_javascript(self):
+        return 'console.log("OUT " + rp[BC] + "," + r[%s]);' % self.reg
+
 
 class OUTD(ExtendedInstructionWithNoParam):
     def asm_repr(self):
@@ -836,6 +877,12 @@ class OUTD(ExtendedInstructionWithNoParam):
 
     uses = {'B', 'C', 'H', 'L'}
     overwrites = {'B', 'H', 'L', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'H', 'L'}:
+            return 'console.log("OUT " + rp[BC] + "," + mem[rp[HL]]); rp[HL]--;'
+        else:
+            super(OUTD, self).to_javascript()
 
 
 class POP_RR(InstructionWithRegPair, InstructionWithNoParam):
@@ -980,6 +1027,12 @@ class SUB_N(InstructionWithByteParam):
     uses = {'A'}
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
+    def to_javascript(self):
+        if self.used_results == {'A'}:
+            return "r[A] -= 0x%02x;" % self.param
+        else:
+            super(SUB_N, self).to_javascript()
+
 
 class XOR_R(InstructionWithReg, InstructionWithNoParam):
     def asm_repr(self):
@@ -990,6 +1043,12 @@ class XOR_R(InstructionWithReg, InstructionWithNoParam):
         return {'A', self.reg}
 
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'A'}:
+            return "r[A] ^= r[%s];" % self.reg
+        else:
+            super(XOR_R, self).to_javascript()
 
 
 INSTRUCTIONS_BY_CB_OPCODE = {
