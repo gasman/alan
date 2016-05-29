@@ -345,6 +345,9 @@ class CALL_NN(InstructionWithWordParam):
     uses = set()
     overwrites = set()
 
+    def to_javascript(self):
+        return "r%04x();" % self.param
+
 
 class CALL_C_NN(InstructionWithCondition, InstructionWithWordParam):
     @property
@@ -425,6 +428,8 @@ class DEC_R(InstructionWithReg, InstructionWithNoParam):
     def to_javascript(self):
         if self.used_results == {self.reg, 'sFlag'}:
             return "r[%s]--; sFlag = !!(r[%s] & 0x80);" % (self.reg, self.reg)
+        elif self.used_results == {self.reg}:
+            return "r[%s]--;" % self.reg
         else:
             super(DEC_R, self).to_javascript()
 
@@ -457,6 +462,9 @@ class DI(InstructionWithNoParam):
     uses = set()
     overwrites = set()
 
+    def to_javascript(self):
+        return "/* DI */"
+
 
 class EI(InstructionWithNoParam):
     def asm_repr(self):
@@ -464,6 +472,9 @@ class EI(InstructionWithNoParam):
 
     uses = set()
     overwrites = set()
+
+    def to_javascript(self):
+        return "/* EI */"
 
 
 class EX_DE_HL(InstructionWithNoParam):
@@ -476,6 +487,8 @@ class EX_DE_HL(InstructionWithNoParam):
     def to_javascript(self):
         if self.used_results == {'D', 'E', 'H', 'L'}:
             return "tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;"
+        elif self.used_results == {'H', 'L'}:
+            return "rp[HL] = rp[DE];"
         else:
             super(EX_DE_HL, self).to_javascript()
 
@@ -491,6 +504,12 @@ class INC_R(InstructionWithReg, InstructionWithNoParam):
     @property
     def overwrites(self):
         return {self.reg, 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {self.reg}:
+            return "r[%s]++;" % self.reg
+        else:
+            super(INC_R, self).to_javascript()
 
 
 class INC_RR(InstructionWithRegPair, InstructionWithNoParam):
@@ -628,6 +647,12 @@ class LD_A_iRRi(InstructionWithRegPair, InstructionWithNoParam):
 
     overwrites = {'A'}
 
+    def to_javascript(self):
+        if self.used_results == {'A'}:
+            return "r[A] = mem[rp[%s]];" % self.reg_pair
+        else:
+            super(LD_A_iRRi, self).to_javascript()
+
 
 class LD_BCDE_iNNi(InstructionWithRegPair, ExtendedInstructionWithWordParam):
     def asm_repr(self):
@@ -689,6 +714,9 @@ class LD_iHLi_R(InstructionWithReg, InstructionWithNoParam):
 
     overwrites = set()
 
+    def to_javascript(self):
+        return "mem[rp[HL]] = r[%s];" % self.reg
+
 
 class LD_iNNi_A(InstructionWithWordParam):
     def asm_repr(self):
@@ -696,6 +724,9 @@ class LD_iNNi_A(InstructionWithWordParam):
 
     uses = {'A'}
     overwrites = set()
+
+    def to_javascript(self):
+        return "mem[0x%04x] = r[A];" % self.param
 
 
 class LD_iNNi_BCDE(InstructionWithRegPair, ExtendedInstructionWithWordParam):
@@ -709,6 +740,12 @@ class LD_iNNi_BCDE(InstructionWithRegPair, ExtendedInstructionWithWordParam):
 
     overwrites = set()
 
+    def to_javascript(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return "mem[0x%04x] = r[%s]; mem[0x%04x] = r[%s];" % (
+            self.param, l, (self.param + 1) & 0xffff, h
+        )
+
 
 class LD_iNNi_HL(InstructionWithWordParam):
     def asm_repr(self):
@@ -716,6 +753,11 @@ class LD_iNNi_HL(InstructionWithWordParam):
 
     uses = {'H', 'L'}
     overwrites = set()
+
+    def to_javascript(self):
+        return "mem[0x%04x] = r[L]; mem[0x%04x] = r[H];" % (
+            self.param, (self.param + 1) & 0xffff
+        )
 
 
 class LD_IXIY_iNNi(InstructionWithRegPair, ExtendedInstructionWithWordParam):
@@ -831,6 +873,12 @@ class LDIR(ExtendedInstructionWithNoParam):
     uses = {'B', 'C', 'D', 'E', 'H', 'L'}
     overwrites = {'B', 'C', 'D', 'E', 'H', 'L', 'pvFlag'}
 
+    def to_javascript(self):
+        if self.used_results == set():
+            return "while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if rp[BC] === 0 break;}"
+        else:
+            super(LDIR, self).to_javascript()
+
 
 class OR_iHLi(InstructionWithNoParam):
     def asm_repr(self):
@@ -899,6 +947,16 @@ class POP_RR(InstructionWithRegPair, InstructionWithNoParam):
             h, l = REGS_FROM_PAIR[self.reg_pair]
             return {h, l}
 
+    def to_javascript(self):
+        if self.reg_pair == 'AF':
+            super(POP_RR, self).to_javascript()
+        else:
+            h, l = REGS_FROM_PAIR[self.reg_pair]
+            if self.used_results == {h, l}:
+                return "r[%s] = mem[rp[SP]]; rp[SP]++; r[%s] = mem[rp[SP]]; rp[SP]++;" % (l, h)
+            else:
+                super(POP_RR, self).to_javascript()
+
 
 class PUSH_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
@@ -913,6 +971,10 @@ class PUSH_RR(InstructionWithRegPair, InstructionWithNoParam):
             return {h, l}
 
     overwrites = set()
+
+    def to_javascript(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return "rp[SP]--; mem[rp[SP]] = r[%s]; rp[SP]--; mem[rp[SP]] = r[%s];" % (h, l)
 
 
 class RES_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
