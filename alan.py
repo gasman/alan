@@ -19,6 +19,7 @@ class Routine(object):
         self.is_traced = False
         self.exit_points = set()
         self.instructions = []
+        self.overwrites = None
 
     def to_javascript(self):
         print("function r%04x() {" % self.start_addr)
@@ -122,6 +123,7 @@ def trace_routine(start_addr):
 
     routine.is_traced = True
     routine.instructions.sort(key=lambda inst:inst.addr)
+    routine.overwrites = get_values_written_by_routine(routine)
     print("Completed trace from %04x." % start_addr)
     return routine
 
@@ -153,6 +155,14 @@ def get_used_results(instruction):
         if result_is_used(instruction, var)
     )
 
+
+def get_values_written_by_routine(routine):
+    values = set()
+    for instruction in routine.instructions:
+        values.update(instruction.overwrites)
+    return values
+
+
 i = 0x4000
 with open('stc_player.bin', 'rb') as f:
     for byte in bytearray(f.read()):
@@ -182,7 +192,9 @@ print("Routines:")
 
 for addr, routine in sorted(routines.items()):
     calls = ', '.join(["0x%04x" % dest for dest in routine.calls])
-    print("0x%04x - %d instructions, calls %s" % (addr, len(routine.instructions), calls))
+    print("0x%04x - %d instructions, calls %s, overwrites %r" % (
+        addr, len(routine.instructions), calls, routine.overwrites
+    ))
 
 
 # print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
