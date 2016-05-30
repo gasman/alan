@@ -220,6 +220,12 @@ FLAG_FROM_CONDITION = {
 }
 
 
+TRACKED_VALUES = [
+    'A', 'B', 'C', 'D', 'E', 'H', 'L', 'IXH', 'IXL', 'IYH', 'IYL',
+    'cFlag', 'zFlag', 'pvFlag', 'sFlag',
+]
+
+
 class ADD_A_iHLi(InstructionWithNoParam):
     def asm_repr(self):
         return "ADD A,(HL)"

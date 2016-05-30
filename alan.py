@@ -1,7 +1,7 @@
 from collections import defaultdict
 import re
 
-from instructions import get_instruction
+from instructions import get_instruction, TRACKED_VALUES
 
 
 mem = bytearray(0x10000)
@@ -20,6 +20,7 @@ class Routine(object):
         self.exit_points = set()
         self.instructions = []
         self.overwrites = None
+        self.uses = None
 
     def to_javascript(self):
         print("function r%04x() {" % self.start_addr)
@@ -123,13 +124,12 @@ def trace_routine(start_addr):
 
     routine.is_traced = True
     routine.instructions.sort(key=lambda inst:inst.addr)
-    routine.overwrites = get_values_written_by_routine(routine)
     print("Completed trace from %04x." % start_addr)
     return routine
 
 
-def result_is_used(instruction, var):
-    addresses_to_trace = set(destinations_by_address[instruction.addr])
+def value_is_used(var, addresses_to_trace, follow_routine_exits=True):
+    addresses_to_trace = set(addresses_to_trace)
     visited_addresses = set()
 
     while addresses_to_trace:
@@ -141,12 +141,23 @@ def result_is_used(instruction, var):
 
         if var not in instruction.overwrites:
             # continue tracing past this instruction
-            for dest in destinations_by_address[addr]:
-                if dest not in visited_addresses:
-                    addresses_to_trace.add(dest)
+            if (not follow_routine_exits) and instruction.is_routine_exit:
+                # only follow the destinations of this instruction that are
+                # not routine exits - i.e. the statically known ones
+                for dest in instruction.static_destination_addresses:
+                    if dest not in visited_addresses:
+                        addresses_to_trace.add(dest)
+            else:
+                for dest in destinations_by_address[addr]:
+                    if dest not in visited_addresses:
+                        addresses_to_trace.add(dest)
 
     # exhausted all addresses without finding one that uses this result
     return False
+
+
+def result_is_used(instruction, var):
+    return value_is_used(var, destinations_by_address[instruction.addr])
 
 
 def get_used_results(instruction):
@@ -157,6 +168,17 @@ def get_used_results(instruction):
 
 
 def get_values_written_by_routine(routine):
+    values = set()
+    for instruction in routine.instructions:
+        values.update(instruction.overwrites)
+    return values
+
+
+def get_values_used_by_routine(routine):
+    return set(
+        value for value in TRACKED_VALUES
+        if value_is_used(value, [routine.start_addr], follow_routine_exits=False)
+    )
     values = set()
     for instruction in routine.instructions:
         values.update(instruction.overwrites)
@@ -191,9 +213,12 @@ for addr, instruction in sorted(instructions_by_address.items()):
 print("Routines:")
 
 for addr, routine in sorted(routines.items()):
+    routine.uses = get_values_used_by_routine(routine)
+    routine.overwrites = get_values_written_by_routine(routine)
+
     calls = ', '.join(["0x%04x" % dest for dest in routine.calls])
-    print("0x%04x - %d instructions, calls %s, overwrites %r" % (
-        addr, len(routine.instructions), calls, routine.overwrites
+    print("0x%04x - %d instructions, calls %s, uses %r, overwrites %r" % (
+        addr, len(routine.instructions), calls, routine.uses, routine.overwrites
     ))
 
 
