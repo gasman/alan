@@ -21,6 +21,7 @@ class Routine(object):
         self.instructions = []
         self.overwrites = None
         self.uses = None
+        self.results = None
 
     def to_javascript(self):
         print("function r%04x() {" % self.start_addr)
@@ -179,10 +180,20 @@ def get_values_used_by_routine(routine):
         value for value in TRACKED_VALUES
         if value_is_used(value, [routine.start_addr], follow_routine_exits=False)
     )
-    values = set()
-    for instruction in routine.instructions:
-        values.update(instruction.overwrites)
-    return values
+
+
+def get_results_from_routine(routine):
+    # get the destinations of all exit points of this routine
+    destinations = set()
+    for instruction in routine.exit_points:
+        for dest in destinations_by_address[instruction.addr]:
+            if dest not in instruction.static_destination_addresses:
+                destinations.add(addr)
+
+    return set(
+        value for value in routine.overwrites
+        if value_is_used(value, destinations)
+    )
 
 
 i = 0x4000
@@ -215,10 +226,11 @@ print("Routines:")
 for addr, routine in sorted(routines.items()):
     routine.uses = get_values_used_by_routine(routine)
     routine.overwrites = get_values_written_by_routine(routine)
+    routine.results = get_results_from_routine(routine)
 
     calls = ', '.join(["0x%04x" % dest for dest in routine.calls])
-    print("0x%04x - %d instructions, calls %s, uses %r, overwrites %r" % (
-        addr, len(routine.instructions), calls, routine.uses, routine.overwrites
+    print("0x%04x - %d instructions, calls %s, uses %r, overwrites %r, returns %r" % (
+        addr, len(routine.instructions), calls, routine.uses, routine.overwrites, routine.results
     ))
 
 
