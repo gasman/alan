@@ -1098,7 +1098,7 @@ class OUT_iCi_R(InstructionWithReg, ExtendedInstructionWithNoParam):
     overwrites = set()
 
     def to_javascript(self):
-        return 'console.log("OUT " + rp[BC] + "," + r[%s]);' % self.reg
+        return "out(rp[BC], r[%s]);" % self.reg
 
 
 class OUTD(ExtendedInstructionWithNoParam):
@@ -1110,7 +1110,7 @@ class OUTD(ExtendedInstructionWithNoParam):
 
     def to_javascript(self):
         if self.used_results == {'H', 'L'}:
-            return 'console.log("OUT " + rp[BC] + "," + mem[rp[HL]]); rp[HL]--;'
+            return "out(rp[BC], mem[rp[HL]]); rp[HL]--;"
         else:
             super(OUTD, self).to_javascript()
 
@@ -1161,7 +1161,7 @@ class PUSH_RR(InstructionWithRegPair, InstructionWithNoParam):
 
     def to_javascript(self):
         if self.reg_pair == 'AF':
-            return "tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = A; rp[SP]--; mem[rp[SP]] = tmp;"
+            return "tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;"
         else:
             h, l = REGS_FROM_PAIR[self.reg_pair]
             return "rp[SP]--; mem[rp[SP]] = r[%s]; rp[SP]--; mem[rp[SP]] = r[%s];" % (h, l)
