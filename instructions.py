@@ -233,6 +233,12 @@ class ADD_A_iHLi(InstructionWithNoParam):
     uses = {'A', 'H', 'L'}
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
+    def to_javascript(self):
+        if self.used_results == {'A'}:
+            return "r[A] += mem[rp[HL]];"
+        else:
+            super(ADD_A_iHLi, self).to_javascript()
+
 
 class ADD_A_N(InstructionWithByteParam):
     def asm_repr(self):
@@ -240,6 +246,12 @@ class ADD_A_N(InstructionWithByteParam):
 
     uses = {'A'}
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'A'}:
+            return "r[A] += 0x%02x;" % self.param
+        else:
+            super(ADD_A_N, self).to_javascript()
 
 
 class ADD_A_R(InstructionWithReg, InstructionWithNoParam):
@@ -329,6 +341,12 @@ class AND_R(InstructionWithReg, InstructionWithNoParam):
         return {'A', self.reg}
 
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.reg == 'A' and self.used_results == {'A', 'cFlag'}:
+            return "cFlag = false;"
+        else:
+            super(AND_R, self).to_javascript()
 
 
 class BIT_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWithOffsetParam):
@@ -480,9 +498,9 @@ class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
     def to_javascript(self):
         if self.used_results == {'sFlag'}:
             if self.offset < 0:
-                return "tmp = (rp[%s] - 0x%02x) & 0xffff; mem[tmp]--; sFlag = !!(mem[tmp] & 0x80)" % (self.reg_pair, -self.offset)
+                return "tmp = (rp[%s] - 0x%02x) & 0xffff; mem[tmp]--; sFlag = !!(mem[tmp] & 0x80);" % (self.reg_pair, -self.offset)
             else:
-                return "tmp = (rp[%s] + 0x%02x) & 0xffff; mem[tmp]--; sFlag = !!(mem[tmp] & 0x80)" % (self.reg_pair, self.offset)
+                return "tmp = (rp[%s] + 0x%02x) & 0xffff; mem[tmp]--; sFlag = !!(mem[tmp] & 0x80);" % (self.reg_pair, self.offset)
         else:
             super(DEC_iIXIYpNi, self).to_javascript()
 
@@ -589,7 +607,7 @@ class INC_R(InstructionWithReg, InstructionWithNoParam):
         elif self.used_results == {self.reg, 'zFlag'}:
             return "r[%s]++; zFlag = (r[%s] === 0x00);" % (self.reg, self.reg)
         elif self.used_results == {'zFlag'}:
-            return "zFlag = (r[%s] == 0xff);"
+            return "zFlag = (r[%s] == 0xff);" % self.reg
         else:
             super(INC_R, self).to_javascript()
 
@@ -1055,10 +1073,18 @@ class OR_R(InstructionWithReg, InstructionWithNoParam):
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
     def to_javascript(self):
-        if self.used_results == {'A'}:
-            return "r[A] |= r[%s];" % self.reg
+        if self.reg == 'A':
+            if self.used_results == {'zFlag', 'sFlag', 'pvFlag', 'cFlag'}:
+                return "/* FIXME: I bet we don't need all these flags */ zFlag = (r[A] === 0);"
+            elif self.used_results == {'zFlag', 'A', 'cFlag'}:
+                return "zFlag = (r[A] === 0); cFlag = false;"
+            else:
+                super(OR_R, self).to_javascript()
         else:
-            super(OR_R, self).to_javascript()
+            if self.used_results == {'A'}:
+                return "r[A] |= r[%s];" % self.reg
+            else:
+                super(OR_R, self).to_javascript()
 
 
 class OUT_iCi_R(InstructionWithReg, ExtendedInstructionWithNoParam):
@@ -1153,6 +1179,12 @@ class RES_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
     def overwrites(self):
         return {self.reg}
 
+    def to_javascript(self):
+        if self.used_results == {self.reg}:
+            return "r[%s] &= 0x%02x;" % (self.reg, 0xff ^ (1 << self.bit))
+        else:
+            super(RES_N_R, self).to_javascript()
+
 
 class RET(InstructionWithNoParam):
     is_routine_exit = True
@@ -1238,6 +1270,12 @@ class SBC_HL_RR(InstructionWithRegPair, ExtendedInstructionWithNoParam):
 
     overwrites = {'H', 'L', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
+    def to_javascript(self):
+        if self.used_results == {'H', 'L', 'cFlag'}:
+            return "tmp = rp[HL] - rp[%s] - cFlag; rp[HL] = tmp; cFlag = (tmp < 0);" % self.reg_pair
+        else:
+            super(SBC_HL_RR, self).to_javascript()
+
 
 class SET_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
     def asm_repr(self):
@@ -1245,6 +1283,9 @@ class SET_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
 
     uses = {'H', 'L'}
     overwrites = set()
+
+    def to_javascript(self):
+        return "mem[rp[HL]] |= 0x%02x;" % (1 << self.bit)
 
 
 class SET_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
@@ -1291,8 +1332,10 @@ class XOR_R(InstructionWithReg, InstructionWithNoParam):
     overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
     def to_javascript(self):
-        if self.used_results == {'A'}:
-            return "r[A] ^= r[%s];" % self.reg
+        if self.reg == 'A' and self.used_results == {'A'}:
+            return "r[A] = 0x00;"
+        elif self.reg == 'A' and self.used_results == {'A', 'cFlag'}:
+            return "r[A] = 0x00; cFlag = false;"
         else:
             super(XOR_R, self).to_javascript()
 

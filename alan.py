@@ -268,5 +268,4 @@ for addr, routine in sorted(routines.items()):
 # print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
 # print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
 
-dump_javascript_with_dependencies([0x4000])
-dump_javascript_with_dependencies([0x4006])
+dump_javascript_with_dependencies([0x4000, 0x4006])
