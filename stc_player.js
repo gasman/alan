@@ -33,6 +33,19 @@
 	mem = new Uint8Array(0x10000);
 	var tmp;
 
+	var ayRegisters = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false];
+	var selectedAYRegister = 0;
+	function out(port, val) {
+		if ((port & 0xc002) == 0xc000) {
+			/* AY register select */
+			selectedAYRegister = val;
+		} else if ((port & 0xc002) == 0x8000) {
+			/* AY register write */
+			ayRegisters[selectedAYRegister] = val;
+			if (selectedAYRegister == 13) ayRegisters[14] = true;
+		}
+	}
+
 	function r4000() {
 		/*
 		Inputs: []
@@ -219,9 +232,9 @@
 					r[C] = 0xfd;
 				case 0x442f:
 					r[B] = 0xff;
-					console.log("OUT " + rp[BC] + "," + r[A]);
+					out(rp[BC], r[A]);
 					r[B] = 0xbf;
-					console.log("OUT " + rp[BC] + "," + mem[rp[HL]]); rp[HL]--;
+					out(rp[BC], mem[rp[HL]]); rp[HL]--;
 					r[A]--; sFlag = !!(r[A] & 0x80);
 					if (!sFlag) {pc = 0x442f; break;}
 					return;
@@ -305,9 +318,9 @@
 					r[C] = 0xfd;
 				case 0x442f:
 					r[B] = 0xff;
-					console.log("OUT " + rp[BC] + "," + r[A]);
+					out(rp[BC], r[A]);
 					r[B] = 0xbf;
-					console.log("OUT " + rp[BC] + "," + mem[rp[HL]]); rp[HL]--;
+					out(rp[BC], mem[rp[HL]]); rp[HL]--;
 					r[A]--; sFlag = !!(r[A] & 0x80);
 					if (!sFlag) {pc = 0x442f; break;}
 					return;
@@ -675,20 +688,12 @@
 			mem[0x443c + i] = stc[i];
 		}
 
-		var checksum = 0;
-		for (i = 0x4000; i < 0x443c; i++) {
-			checksum += (i - 0x3fff) * mem[i];
-		}
-		console.log('pre init checksum', checksum);
-
 		r4000();
-		r4006();
-
-		checksum = 0;
-		for (i = 0x4000; i < 0x443c; i++) {
-			checksum += (i - 0x3fff) * mem[i];
+		for (var frame = 0; frame < 320; frame++) {
+			ayRegisters[14] = false;
+			r4006();
+			console.log(ayRegisters.slice());
 		}
-		console.log('post init checksum', checksum);
 
 	});
 
