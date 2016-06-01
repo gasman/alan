@@ -881,7 +881,7 @@ class LDIR(ExtendedInstructionWithNoParam):
 
     def to_javascript(self):
         if self.used_results == set():
-            return "while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if rp[BC] === 0 break;}"
+            return "while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if (rp[BC] === 0) break;}"
         else:
             super(LDIR, self).to_javascript()
 
@@ -895,7 +895,7 @@ class OR_iHLi(InstructionWithNoParam):
 
     def to_javascript(self):
         if self.used_results == {'zFlag'}:
-            return "zFlag = (r[A] | mem[rp[HL]]) == 0;"
+            return "zFlag = (r[A] | mem[rp[HL]]) === 0;"
         else:
             super(OR_iHLi, self).to_javascript()
 
