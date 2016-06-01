@@ -205,7 +205,7 @@ def get_results_from_routine(routine):
     for instruction in routine.exit_points:
         for dest in destinations_by_address[instruction.addr]:
             if dest not in instruction.static_destination_addresses:
-                destinations.add(addr)
+                destinations.add(dest)
 
     return set(
         value for value in routine.overwrites
