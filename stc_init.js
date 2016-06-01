@@ -31,6 +31,7 @@
 	}
 
 	mem = new Uint8Array(0x10000);
+	var tmp;
 
 	function r4000() {
 		/*

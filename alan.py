@@ -5,7 +5,7 @@ from io import StringIO
 from instructions import get_instruction, TRACKED_VALUES
 
 
-verbose = False
+verbose = True
 
 mem = bytearray(0x10000)
 
@@ -269,3 +269,4 @@ for addr, routine in sorted(routines.items()):
 # print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
 
 dump_javascript_with_dependencies([0x4000])
+dump_javascript_with_dependencies([0x4006])
