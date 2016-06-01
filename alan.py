@@ -1,8 +1,11 @@
 from collections import defaultdict
 import re
+from io import StringIO
 
 from instructions import get_instruction, TRACKED_VALUES
 
+
+verbose = False
 
 mem = bytearray(0x10000)
 
@@ -10,6 +13,11 @@ instructions_by_address = {}
 origins_by_address = defaultdict(set)
 destinations_by_address = defaultdict(set)
 jump_targets = set()
+
+
+def log(*args):
+    if verbose:
+        print(*args)
 
 
 class Routine(object):
@@ -24,30 +32,39 @@ class Routine(object):
         self.results = None
 
     def to_javascript(self):
-        print("function r%04x() {" % self.start_addr)
+        out = StringIO()
+        print("function r%04x() {" % self.start_addr, file=out)
+
+        print("\t/*\n\tInputs: %r\n\tOutputs: %r\n\tOverwrites: %r\n\t*/" % (
+            list(self.uses), list(self.results), list(self.overwrites)
+        ), file=out)
 
         has_jumps = any(
             instruction.addr in jump_targets for instruction in self.instructions
         )
 
         if has_jumps:
-            print("\tvar pc = 0x%04x;" % self.start_addr)
-            print("\twhile (true) {\n\t\tswitch (pc) {")
+            print("\tvar pc = 0x%04x;" % self.start_addr, file=out)
+            print("\twhile (true) {\n\t\tswitch (pc) {", file=out)
 
             for instruction in self.instructions:
                 if instruction.addr in jump_targets or instruction.addr == self.start_addr:
-                    print("\t\t\tcase 0x%04x:" % instruction.addr)
+                    print("\t\t\tcase 0x%04x:" % instruction.addr, file=out)
 
                 code = instruction.to_javascript()
-                print(re.sub(r'^', '\t\t\t\t', code, flags=re.MULTILINE))
+                print(re.sub(r'^', '\t\t\t\t', code, flags=re.MULTILINE), file=out)
 
-            print('\t\t}\n\t}')
+            print('\t\t}\n\t}', file=out)
         else:
             for instruction in self.instructions:
                 code = instruction.to_javascript()
-                print(re.sub(r'^', '\t', code, flags=re.MULTILINE))
+                print(re.sub(r'^', '\t', code, flags=re.MULTILINE), file=out)
 
-        print("}")
+        print("}", file=out)
+
+        result = out.getvalue()
+        out.close()
+        return result
 
 routines = {}
 
@@ -55,7 +72,7 @@ routines = {}
 def trace_routine(start_addr):
     addresses_to_trace = [start_addr]
     visited_addresses = set()
-    print("Tracing from %04x..." % start_addr)
+    log("Tracing from %04x..." % start_addr)
 
     routine = Routine(start_addr)
     routines[start_addr] = routine
@@ -72,7 +89,7 @@ def trace_routine(start_addr):
             instructions_by_address[addr] = instruction
 
         routine.instructions.append(instruction)
-        print(instruction)
+        log(instruction)
 
         if instruction.is_routine_exit:
             # TODO: check that stack is balanced
@@ -105,7 +122,7 @@ def trace_routine(start_addr):
                 subroutine = routines[instruction.call_target]
                 if not subroutine.is_traced:
                     raise Exception("Recursive call detected!")
-                print("Using previously-completed trace of routine from %04x." %
+                log("Using previously-completed trace of routine from %04x." %
                     instruction.call_target)
             else:
                 subroutine = trace_routine(instruction.call_target)
@@ -121,11 +138,11 @@ def trace_routine(start_addr):
                 # continue tracing from the return address
                 addresses_to_trace.append(instruction.return_address)
             else:
-                print("Subroutine does not exit; not continuing to trace from its return address")
+                log("Subroutine does not exit; not continuing to trace from its return address")
 
     routine.is_traced = True
     routine.instructions.sort(key=lambda inst:inst.addr)
-    print("Completed trace from %04x." % start_addr)
+    log("Completed trace from %04x." % start_addr)
     return routine
 
 
@@ -196,6 +213,20 @@ def get_results_from_routine(routine):
     )
 
 
+def dump_javascript_with_dependencies(addrs):
+    routines_output = set()
+    routines_to_output = list(addrs)
+    while routines_to_output:
+        addr = routines_to_output.pop(0)
+        routine = routines[addr]
+        for call_addr in routine.calls:
+            if call_addr not in routines_output and call_addr not in routines_to_output:
+                routines_to_output.append(call_addr)
+
+        print(routine.to_javascript())
+        routines_output.add(addr)
+
+
 i = 0x4000
 with open('stc_player.bin', 'rb') as f:
     for byte in bytearray(f.read()):
@@ -210,18 +241,18 @@ with open('shatners_bassoon.stc', 'rb') as f:
 trace_routine(0x4000)
 trace_routine(0x4006)
 
-print("Trace complete.")
+log("Trace complete.")
 
 for addr, instruction in sorted(instructions_by_address.items()):
     instruction.used_results = get_used_results(instruction)
 
     origins = ','.join(["%04x" % origin for origin in origins_by_address[addr]])
     destinations = ','.join(["%04x" % dest for dest in destinations_by_address[addr]])
-    print("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
-    print("Needs to evaluate", instruction.used_results, 'from', instruction.overwrites)
+    log("%s - reachable from: %s, goes to: %s" % (instruction, origins, destinations))
+    log("Needs to evaluate", instruction.used_results, 'from', instruction.overwrites)
 
 
-print("Routines:")
+log("Routines:")
 
 for addr, routine in sorted(routines.items()):
     routine.uses = get_values_used_by_routine(routine)
@@ -229,7 +260,7 @@ for addr, routine in sorted(routines.items()):
     routine.results = get_results_from_routine(routine)
 
     calls = ', '.join(["0x%04x" % dest for dest in routine.calls])
-    print("0x%04x - %d instructions, calls %s, uses %r, overwrites %r, returns %r" % (
+    log("0x%04x - %d instructions, calls %s, uses %r, overwrites %r, returns %r" % (
         addr, len(routine.instructions), calls, routine.uses, routine.overwrites, routine.results
     ))
 
@@ -237,8 +268,4 @@ for addr, routine in sorted(routines.items()):
 # print("routine 0x4000 exits via: %r" % [exit.addr for exit in routines[0x4000].exit_points])
 # print("routine 0x4006 exits via: %r" % [exit.addr for exit in routines[0x4006].exit_points])
 
-print(routines[0x40af].to_javascript())
-print(routines[0x40b5].to_javascript())
-print(routines[0x40ba].to_javascript())
-print(routines[0x441f].to_javascript())
-print(routines[0x4000].to_javascript())
+dump_javascript_with_dependencies([0x4000])
