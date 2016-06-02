@@ -50,7 +50,8 @@
 
 	var dataAddr;
 	var sampleIndex;
-	var w4072, w4074, w4076;
+	var w4070, w4072, w4074, w4076;
+	var b407a;
 	var tempo, tempoCounter;
 
 	var patternPtrs = new Uint16Array(3);
@@ -70,8 +71,8 @@
 		r[A] = mem[rp[DE]];
 		rp[DE]++;
 		r[A]++;
-		mem[0x407a] = r[A];
-		mem[0x4070] = r[E]; mem[0x4071] = r[D];
+		b407a = r[A];
+		w4070 = rp[DE];
 		w4072 = readPointer();
 		w4074 = readPointer();
 		w4076 = dataAddr + 0x001b;
@@ -252,16 +253,14 @@
 		*/
 		r[A] = mem[0x40a0];
 		r[C] = r[A];
-		rp[HL] = 0x407a;
-		if (r[A] >= mem[rp[HL]]) {
+		if (r[A] >= b407a) {
 			r[A] = 0x00;
 			r[C] = r[A];
 		}
 		r[A]++;
 		mem[0x40a0] = r[A];
 		rp[HL] = r[C] << 1;
-		r[E] = mem[0x4070]; r[D] = mem[0x4071];
-		rp[HL] += rp[DE];
+		rp[HL] += w4070;
 		r[C] = mem[rp[HL]];
 		rp[HL]++;
 		r[A] = mem[rp[HL]];
