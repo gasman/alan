@@ -62,18 +62,18 @@
 		mem[0x4078] = r[A];
 		dataAddr = rp[HL];
 		rp[HL]++;
-		r40b5();
+		rp[DE] = readPointer();
 		r[A] = mem[rp[DE]];
 		rp[DE]++;
 		r[A]++;
 		mem[0x407a] = r[A];
 		mem[0x4070] = r[E]; mem[0x4071] = r[D];
-		r40b5();
+		rp[DE] = readPointer();
 		mem[0x4072] = r[E]; mem[0x4073] = r[D];
 
 		var pushedDE = rp[DE];
 
-		r40b5();
+		rp[DE] = readPointer();
 		mem[0x4074] = r[E]; mem[0x4075] = r[D];
 		rp[HL] = dataAddr + 0x001b;
 		mem[0x4076] = r[L]; mem[0x4077] = r[H];
@@ -194,8 +194,11 @@
 		writeAY();
 	}
 
-	function r40b5() {
+	function readPointer() {
 		/*
+		Read a pointer from address HL, advance HL,
+		and return the pointer converted to an address
+
 		Inputs: ['H', 'L']
 		Outputs: ['D', 'E', 'H', 'C', 'L']
 		Overwrites: ['D', 'cFlag', 'H', 'L', 'E', 'B', 'C']
@@ -204,10 +207,8 @@
 		rp[HL]++;
 		r[D] = mem[rp[HL]];
 		rp[HL]++;
-		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
 
-		rp[HL] += dataAddr;
-		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
+		return rp[DE] + dataAddr;
 	}
 
 	function scan(addr, len, id) {
@@ -284,11 +285,11 @@
 		rp[BC] = 0x0007;
 		rp[HL] = scan(rp[HL], rp[BC], r[A]);
 		rp[HL]++;
-		r40b5();
+		rp[DE] = readPointer();
 		mem[0x407b] = r[E]; mem[0x407c] = r[D];
-		r40b5();
+		rp[DE] = readPointer();
 		mem[0x407d] = r[E]; mem[0x407e] = r[D];
-		r40b5();
+		rp[DE] = readPointer();
 		mem[0x407f] = r[E]; mem[0x4080] = r[D];
 	}
 
