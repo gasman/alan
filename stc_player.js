@@ -48,6 +48,8 @@
 		}
 	}
 
+	var dataAddr;
+
 	function r4000() {
 		/*
 		Inputs: []
@@ -58,7 +60,7 @@
 		/* DI */
 		r[A] = mem[rp[HL]];
 		mem[0x4078] = r[A];
-		mem[0x40bb] = r[L]; mem[0x40bc] = r[H];
+		dataAddr = rp[HL];
 		rp[HL]++;
 		r40b5();
 		r[A] = mem[rp[DE]];
@@ -72,7 +74,7 @@
 		r40b5();
 		mem[0x4074] = r[E]; mem[0x4075] = r[D];
 		rp[HL] = 0x001b;
-		r40ba();
+		offsetToAddr();
 		rp[HL] = rp[DE];
 		mem[0x4076] = r[L]; mem[0x4077] = r[H];
 		rp[HL] = 0x4081;
@@ -205,27 +207,19 @@
 		rp[HL]++;
 		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
 
-		// rp[BC] = 0xee43; // SMC
-		r[C] = mem[0x40bb]; r[B] = mem[0x40bc];
-
-		rp[HL] += rp[BC];
+		rp[HL] += dataAddr;
 		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
-		return;
 	}
 
-	function r40ba() {
+	function offsetToAddr() {
 		/*
 		Inputs: ['D', 'H', 'E', 'L']
 		Outputs: ['D', 'E', 'H', 'C', 'L']
 		Overwrites: ['D', 'cFlag', 'H', 'L', 'E', 'B', 'C']
 		*/
 
-		// rp[BC] = 0xee43; // SMC
-		r[C] = mem[0x40bb]; r[B] = mem[0x40bc];
-
-		rp[HL] += rp[BC];
+		rp[HL] += dataAddr;
 		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
-		return;
 	}
 
 	function scan(addr, len, id) {
