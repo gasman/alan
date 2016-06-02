@@ -50,9 +50,10 @@
 
 	var dataAddr;
 	var b433c;
+	var w4072, w4074, w4076;
 	var tempo, tempoCounter;
 
-	var buf407b = new Uint16Array(3);
+	var patternPtrs = new Uint16Array(3);
 
 	function r4000() {
 		/*
@@ -70,22 +71,16 @@
 		r[A]++;
 		mem[0x407a] = r[A];
 		mem[0x4070] = r[E]; mem[0x4071] = r[D];
-		rp[DE] = readPointer();
-		mem[0x4072] = r[E]; mem[0x4073] = r[D];
+		w4072 = readPointer();
+		w4074 = readPointer();
+		w4076 = dataAddr + 0x001b;
 
-		var pushedDE = rp[DE];
-
-		rp[DE] = readPointer();
-		mem[0x4074] = r[E]; mem[0x4075] = r[D];
-		rp[HL] = dataAddr + 0x001b;
-		mem[0x4076] = r[L]; mem[0x4077] = r[H];
-
-		buf407b[0] = 0x4081;
+		patternPtrs[0] = 0x4081;
 		for (var i = 0x4082; i < 0x4082 + 0x002c; i++) {
 			mem[i] = 0;
 		}
 
-		rp[HL] = pushedDE;
+		rp[HL] = w4072;
 		rp[HL] = scan(rp[HL], 0x0021, 0x00) + 1;
 		mem[0x408b] = 0xff;
 		mem[0x4095] = 0xff;
@@ -113,35 +108,33 @@
 			chanPtr = 0x4084;
 			r4139(chanPtr);
 			if (sFlag) {
-				if (mem[buf407b[0]] == 0xff) r40f8();
-				rp[HL] = buf407b[0];
-				r4198(chanPtr);
-				buf407b[0] = rp[HL];
+				if (mem[patternPtrs[0]] == 0xff) r40f8();
+				rp[HL] = patternPtrs[0];
+				fetchPatternData(chanPtr);
+				patternPtrs[0] = rp[HL];
 			}
 			chanPtr = 0x408e;
 			r4139(chanPtr);
 			if (sFlag) {
-				rp[HL] = buf407b[1];
-				r4198(chanPtr);
-				buf407b[1] = rp[HL];
+				rp[HL] = patternPtrs[1];
+				fetchPatternData(chanPtr);
+				patternPtrs[1] = rp[HL];
 			}
 			chanPtr = 0x4098;
 			r4139(chanPtr);
 			if (sFlag) {
-				rp[HL] = buf407b[2];
-				r4198(chanPtr);
-				buf407b[2] = rp[HL];
+				rp[HL] = patternPtrs[2];
+				fetchPatternData(chanPtr);
+				patternPtrs[2] = rp[HL];
 			}
 		}
 		rp[IX] = 0x4084;
-		r4235();
+		r4235(rp[IX]);
 		r[A] = r[C];
 		b433c = r[A];
 		r[IXL] = mem[0x4087]; r[IXH] = mem[0x4088];
-		r40c0();
-		r[A] = r[C] | r[B];
-		r[A] = (r[A] >> 1) | (r[A] << 7);
-		mem[0x40a8] = r[A];
+		getSampleData(rp[IX]);
+		mem[0x40a8] = (r[C] | r[B]) >> 1;
 		rp[IX] = 0x4084;
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
@@ -153,15 +146,14 @@
 		mem[rp[HL]] = r[A];
 		r4271();
 		rp[IX] = 0x408e;
-		r4235();
+		r4235(rp[IX]);
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
 			b433c = r[A];
 			r[IXL] = mem[0x4091]; r[IXH] = mem[0x4092];
-			r40c0();
-			r[A] = mem[0x40a8] | r[C] | r[B];
-			mem[0x40a8] = r[A];
+			getSampleData(rp[IX]);
+			mem[0x40a8] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x408e;
 			r4332();
@@ -171,19 +163,16 @@
 		mem[rp[HL]] = r[A];
 		r4271();
 		rp[IX] = 0x4098;
-		r4235();
+		r4235(rp[IX]);
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
 			b433c = r[A];
 			r[IXL] = mem[0x409b]; r[IXH] = mem[0x409c];
-			r40c0();
-			r[A] = mem[0x40a8];
-			r[C] = (r[C] << 1) | (r[C] >> 7);
-			r[B] = (r[B] << 1) | (r[B] >> 7);
-			r[A] |= r[B];
-			r[A] |= r[C];
-			mem[0x40a8] = r[A];
+			getSampleData(rp[IX]);
+			r[C] = (r[C] << 1);
+			r[B] = (r[B] << 1);
+			mem[0x40a8] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x4098;
 			r4332();
@@ -282,16 +271,13 @@
 		r[A] = mem[rp[HL]];
 		mem[0x4344] = r[A];
 		r[A] = r[C];
-		r[L] = mem[0x4074]; r[H] = mem[0x4075];
-		rp[BC] = 0x0007;
-		rp[HL] = scan(rp[HL], rp[BC], r[A]);
-		rp[HL]++;
-		buf407b[0] = readPointer();
-		buf407b[1] = readPointer();
-		buf407b[2] = readPointer();
+		rp[HL] = scan(w4074, 0x0007, r[A]) + 1;
+		patternPtrs[0] = readPointer();
+		patternPtrs[1] = readPointer();
+		patternPtrs[2] = readPointer();
 	}
 
-	function r4198(ix) {
+	function fetchPatternData(chanPtr) {
 		/*
 		Inputs: ['IXL', 'IXH', 'H', 'L']
 		Outputs: ['H', 'C', 'cFlag', 'L']
@@ -301,121 +287,119 @@
 		while (true) {
 			r[A] = mem[rp[HL]];
 			if (r[A] < 0x60) {
-				mem[ix + 0x01] = r[A];
-				mem[ix + 0x00] = 0x00;
-				mem[ix + 0x07] = 0x20;
+				mem[chanPtr + 0x01] = r[A];
+				mem[chanPtr + 0x00] = 0x00;
+				mem[chanPtr + 0x07] = 0x20;
 				rp[HL]++;
 				return;
 			} else if (r[A] < 0x70) {
 				r[A] -= 0x60;
 				pushedHL = rp[HL];
-				rp[BC] = 0x0063;
-				r[L] = mem[0x4076]; r[H] = mem[0x4077];
-				rp[HL] = scan(rp[HL], rp[BC], r[A]) + 1;
-				mem[ix + 0x03] = r[L];
-				mem[ix + 0x04] = r[H];
+				rp[BC] = 0x0063; /* seemingly needed... */
+				rp[HL] = scan(w4076, 0x0063, r[A]) + 1;
+				mem[chanPtr + 0x03] = r[L];
+				mem[chanPtr + 0x04] = r[H];
 				rp[HL] = pushedHL + 1;
 			} else if (r[A] < 0x80) {
 				r[A] -= 0x70;
-				r41f6(ix);
+				pushedHL = rp[HL];
+				r41f6(chanPtr);
+				rp[HL] = pushedHL + 1;
 			} else if (r[A] == 0x80) {
 				rp[HL]++;
-				mem[ix + 0x07] = 0xff;
+				mem[chanPtr + 0x07] = 0xff;
 				return;
 			} else if (r[A] == 0x81) {
 				rp[HL]++;
 				return;
 			} else if (r[A] == 0x82) {
 				r[A] = 0x00;
-				r41f6(ix);
+				pushedHL = rp[HL];
+				r41f6(chanPtr);
+				rp[HL] = pushedHL + 1;
 			} else if (r[A] < 0x8f) {
 				r[A] -= 0x80;
 				mem[0x40ae] = r[A];
 				rp[HL]++;
-				r[A] = mem[rp[HL]];
+				mem[0x40ac] = mem[rp[HL]];
 				rp[HL]++;
-				mem[0x40ac] = r[A];
-				mem[ix - 0x02] = 0x01;
+				mem[chanPtr - 0x02] = 0x01;
 				pushedHL = rp[HL];
-				r[A] = 0x00;
-				rp[BC] = 0x0021;
-				r[L] = mem[0x4072]; r[H] = mem[0x4073];
-				rp[HL] = scan(rp[HL], rp[BC], r[A]) + 1;
-				mem[ix + 0x05] = r[L];
-				mem[ix + 0x06] = r[H];
+				rp[HL] = scan(w4072, 0x0021, 0x00) + 1;
+				mem[chanPtr + 0x05] = r[L];
+				mem[chanPtr + 0x06] = r[H];
 				rp[HL] = pushedHL;
 			} else {
 				r[A] -= 0xa1;
-				mem[ix + 0x02] = r[A];
-				mem[ix - 0x01] = r[A];
+				mem[chanPtr + 0x02] = r[A];
+				mem[chanPtr - 0x01] = r[A];
 				rp[HL]++;
 			}
 		}
 	}
 
-	function r41f6(ix) {
-		var origHL = rp[HL];
-		rp[BC] = 0x0021;
-		r[L] = mem[0x4072]; r[H] = mem[0x4073];
-		rp[HL] = scan(rp[HL], rp[BC], r[A]) + 1;
-		mem[ix + 0x05] = r[L];
-		mem[ix + 0x06] = r[H];
-		mem[ix - 0x02] = 0x00;
-		rp[HL] = origHL + 1;
+	function r41f6(chanPtr) {
+		rp[HL] = scan(w4072, 0x0021, r[A]) + 1;
+		mem[chanPtr + 0x05] = r[L];
+		mem[chanPtr + 0x06] = r[H];
+		mem[chanPtr - 0x02] = 0x00;
 	}
 
-	function r4235() {
+	function r4235(ix) {
 		/*
 		Inputs: ['IXL', 'cFlag', 'IXH']
 		Outputs: ['H', 'C', 'cFlag', 'L']
 		Overwrites: ['D', 'zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'E', 'C']
 		*/
-		r[A] = mem[rp[IX] + 0x07] + 1;
+		r[A] = mem[ix + 0x07] + 1;
 		if (r[A] === 0x00) return;
 		r[A] -= 2;
 		var aWasZero = (r[A] === 0x00);
-		mem[rp[IX] + 0x07] = r[A];
-		r[A] = mem[rp[IX] + 0x00];
+		mem[ix + 0x07] = r[A];
+		r[A] = mem[ix + 0x00];
 		r[C] = r[A];
 		r[A] = (r[A] + 1) & 0x1f;
-		mem[rp[IX] + 0x00] = r[A];
+		mem[ix + 0x00] = r[A];
 
 		if (!aWasZero) return;
-		r[E] = mem[rp[IX] + 0x03];
-		r[D] = mem[rp[IX] + 0x04];
+		r[E] = mem[ix + 0x03];
+		r[D] = mem[ix + 0x04];
 		rp[HL] = rp[DE] + 0x0060;
 		r[A] = mem[rp[HL]];
 		r[A]--;
 		if (r[A] & 0x80) {
-			mem[rp[IX] + 0x07] = 0xff;
+			mem[ix + 0x07] = 0xff;
 		} else {
 			r[C] = r[A];
 			r[A] = (r[A] + 1) & 0x1f;
-			mem[rp[IX] + 0x00] = r[A];
+			mem[ix + 0x00] = r[A];
 			rp[HL]++;
 			r[A] = mem[rp[HL]] + 1;
-			mem[rp[IX] + 0x07] = r[A];
+			mem[ix + 0x07] = r[A];
 		}
 	}
 
-	function r40c0() {
+	function getSampleData(samplePtr) {
 		/*
 		Inputs: ['A', 'IXL', 'IXH']
 		Outputs: ['D', 'H', 'IXL', 'L', 'E', 'B', 'C', 'IXH']
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'IXL', 'H', 'L', 'E', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
-		r[D] = 0x00;
+		var a;
+
 		r[E] = r[A] * 3;
-		rp[IX] += rp[DE];
-		r[A] = mem[rp[IX] + 0x01];
-		r[C] = (r[A] & 0x80) ? 0x10 : r[D];
-		r[B] = (r[A] & 0x40) ? 0x02 : r[D];
-		r[H] = r[A] & 0x1f;
-		r[E] = mem[rp[IX] + 0x02];
-		r[A] = mem[rp[IX] + 0x00];
-		r[D] = r[A] >> 4;
-		r[L] = r[A] & 0x0f;
-		if (mem[rp[IX] + 0x01] & 0x20) {
+		samplePtr += r[E];
+
+		a = mem[samplePtr + 0x01];
+		r[C] = (a & 0x80) ? 0x10 : 0x00;
+		r[B] = (a & 0x40) ? 0x02 : 0x00;
+		r[H] = a & 0x1f;
+		r[E] = mem[samplePtr + 0x02];
+
+		a = mem[samplePtr + 0x00];
+		r[D] = a >> 4;
+		r[L] = a & 0x0f;
+		if (mem[samplePtr + 0x01] & 0x20) {
 			r[D] |= 0x10;
 		}
 	}
@@ -440,26 +424,19 @@
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag']
 		*/
 		r[A] = r[L];
-		var origA = r[A];
-		var origDE = rp[DE];
+
 		r[L] = mem[rp[IX] + 0x05];
 		r[H] = mem[rp[IX] + 0x06];
 
 		rp[HL] += b433c;
-		r[A] = (mem[rp[IX] + 0x01] + mem[rp[HL]] + mem[0x4344]) << 1;
+		var a = ((mem[rp[IX] + 0x01] + mem[rp[HL]] + mem[0x4344]) << 1) & 0xff;
 
-		rp[HL] = 0x435f + r[A];
+		rp[HL] = 0x435f + a;
 
-		r[E] = mem[rp[HL]];
-		rp[HL]++;
-		r[D] = mem[rp[HL]];
-		rp[HL] = rp[DE];
+		rp[HL] = mem[rp[HL]] | (mem[rp[HL] + 1] << 8);
 
-		rp[DE] = origDE;
-		r[A] = origA;
 		if (r[D] & 0x10) {
-			r[D] &= 0xef;
-			rp[HL] += rp[DE];
+			rp[HL] += (rp[DE] & 0x0fff);
 		} else {
 			rp[HL] -= rp[DE];
 		}
