@@ -11,7 +11,7 @@
 	var rp = new Uint16Array(registerBuffer);
 	var r = new Uint8Array(registerBuffer);
 
-	var BC = 1, DE = 2, HL = 3, IX = 4, IY = 5, SP = 6;
+	var BC = 1, DE = 2, HL = 3, IX = 4, IY = 5;
 
 	var A, B, C, D, E, H, L, IXH, IXL, IYH, IYL;
 	if (isBigEndian) {
@@ -70,7 +70,9 @@
 		mem[0x4070] = r[E]; mem[0x4071] = r[D];
 		r40b5();
 		mem[0x4072] = r[E]; mem[0x4073] = r[D];
-		rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
+
+		var pushedDE = rp[DE];
+
 		r40b5();
 		mem[0x4074] = r[E]; mem[0x4075] = r[D];
 		rp[HL] = 0x001b;
@@ -82,7 +84,8 @@
 		for (var i = 0x4082; i < 0x4082 + 0x002c; i++) {
 			mem[i] = 0;
 		}
-		r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
+
+		rp[HL] = pushedDE;
 		rp[HL] = scan(rp[HL], 0x0021, 0x00) + 1;
 		mem[0x408b] = 0xff;
 		mem[0x4095] = 0xff;
@@ -308,6 +311,7 @@
 		Outputs: ['H', 'C', 'cFlag', 'L']
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'B', 'C']
 		*/
+		var pushedHL;
 		while (true) {
 			r[A] = mem[rp[HL]];
 			if (r[A] < 0x60) {
@@ -318,15 +322,13 @@
 				return;
 			} else if (r[A] < 0x70) {
 				r[A] -= 0x60;
-				rp[SP]--; mem[rp[SP]] = r[H]; rp[SP]--; mem[rp[SP]] = r[L];
+				pushedHL = rp[HL];
 				rp[BC] = 0x0063;
 				r[L] = mem[0x4076]; r[H] = mem[0x4077];
-				rp[HL] = scan(rp[HL], rp[BC], r[A]);
-				rp[HL]++;
+				rp[HL] = scan(rp[HL], rp[BC], r[A]) + 1;
 				mem[ix + 0x03] = r[L];
 				mem[ix + 0x04] = r[H];
-				r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
-				rp[HL]++;
+				rp[HL] = pushedHL + 1;
 			} else if (r[A] < 0x80) {
 				r[A] -= 0x70;
 				r41f6(ix);
@@ -348,15 +350,14 @@
 				rp[HL]++;
 				mem[0x40ac] = r[A];
 				mem[ix - 0x02] = 0x01;
-				rp[SP]--; mem[rp[SP]] = r[H]; rp[SP]--; mem[rp[SP]] = r[L];
+				pushedHL = rp[HL];
 				r[A] = 0x00;
 				rp[BC] = 0x0021;
 				r[L] = mem[0x4072]; r[H] = mem[0x4073];
-				rp[HL] = scan(rp[HL], rp[BC], r[A]);
-				rp[HL]++;
+				rp[HL] = scan(rp[HL], rp[BC], r[A]) + 1;
 				mem[ix + 0x05] = r[L];
 				mem[ix + 0x06] = r[H];
-				r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
+				rp[HL] = pushedHL;
 			} else {
 				r[A] -= 0xa1;
 				mem[ix + 0x02] = r[A];
@@ -367,16 +368,14 @@
 	}
 
 	function r41f6(ix) {
-		rp[SP]--; mem[rp[SP]] = r[H]; rp[SP]--; mem[rp[SP]] = r[L];
+		var origHL = rp[HL];
 		rp[BC] = 0x0021;
 		r[L] = mem[0x4072]; r[H] = mem[0x4073];
-		rp[HL] = scan(rp[HL], rp[BC], r[A]);
-		rp[HL]++;
+		rp[HL] = scan(rp[HL], rp[BC], r[A]) + 1;
 		mem[ix + 0x05] = r[L];
 		mem[ix + 0x06] = r[H];
 		mem[ix - 0x02] = 0x00;
-		r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
-		rp[HL]++;
+		rp[HL] = origHL + 1;
 	}
 
 	function r4235() {
@@ -455,8 +454,8 @@
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag']
 		*/
 		r[A] = r[L];
-		rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--;
-		rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
+		var origA = r[A];
+		var origDE = rp[DE];
 		r[L] = mem[rp[IX] + 0x05];
 		r[H] = mem[rp[IX] + 0x06];
 
@@ -473,8 +472,8 @@
 		r[D] = mem[rp[HL]];
 		rp[HL] = rp[DE];
 
-		r[E] = mem[rp[SP]]; rp[SP]++; r[D] = mem[rp[SP]]; rp[SP]++;
-		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
+		rp[DE] = origDE;
+		r[A] = origA;
 		if (r[D] & 0x10) {
 			r[D] &= 0xef;
 			rp[HL] += rp[DE];
