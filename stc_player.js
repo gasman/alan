@@ -145,8 +145,7 @@
 		mem[0x433c] = r[A];
 		r[IXL] = mem[0x4087]; r[IXH] = mem[0x4088];
 		r40c0();
-		r[A] = r[C];
-		r[A] |= r[B];
+		r[A] = r[C] | r[B];
 		r[A] = (r[A] >> 1) | (r[A] << 7);
 		mem[0x40a8] = r[A];
 		rp[IX] = 0x4084;
@@ -169,9 +168,7 @@
 			mem[0x433c] = r[A];
 			r[IXL] = mem[0x4091]; r[IXH] = mem[0x4092];
 			r40c0();
-			r[A] = mem[0x40a8];
-			r[A] |= r[C];
-			r[A] |= r[B];
+			r[A] = mem[0x40a8] | r[C] | r[B];
 			mem[0x40a8] = r[A];
 			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x408e;
@@ -263,9 +260,7 @@
 		r[A] = 0x0d;
 		if (mem[rp[HL]] === 0) {
 			r[A] -= 0x03;
-			rp[HL]--;
-			rp[HL]--;
-			rp[HL]--;
+			rp[HL] -= 3;
 		}
 		r[C] = 0xfd;
 		do {
@@ -283,10 +278,9 @@
 		Outputs: ['sFlag']
 		Overwrites: ['sFlag', 'A', 'zFlag', 'pvFlag']
 		*/
-		tmp = rp[IX] + 0x02; mem[tmp]--; sFlag = !!(mem[tmp] & 0x80);
+		mem[rp[IX] + 0x02]--; sFlag = !!(mem[rp[IX] + 0x02] & 0x80);
 		if (sFlag) {
-			r[A] = mem[rp[IX] - 0x01];
-			mem[rp[IX] + 0x02] = r[A];
+			mem[rp[IX] + 0x02] = mem[rp[IX] - 0x01];
 		}
 	}
 
@@ -305,9 +299,7 @@
 		}
 		r[A]++;
 		mem[0x40a0] = r[A];
-		r[L] = r[C];
-		r[H] = 0x00;
-		rp[HL] += rp[HL];
+		rp[HL] = r[C] << 1;
 		r[E] = mem[0x4070]; r[D] = mem[0x4071];
 		rp[HL] += rp[DE];
 		r[C] = mem[rp[HL]];
@@ -410,39 +402,32 @@
 		Outputs: ['H', 'C', 'cFlag', 'L']
 		Overwrites: ['D', 'zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'E', 'C']
 		*/
-		r[A] = mem[rp[IX] + 0x07];
-		r[A]++;
+		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] === 0x00) return;
-		r[A]--;
-		r[A]--;
+		r[A] -= 2;
 		var aWasZero = (r[A] === 0x00);
 		mem[rp[IX] + 0x07] = r[A];
 		r[A] = mem[rp[IX] + 0x00];
 		r[C] = r[A];
-		r[A]++;
-		r[A] &= 0x1f;
+		r[A] = (r[A] + 1) & 0x1f;
 		mem[rp[IX] + 0x00] = r[A];
 
 		if (!aWasZero) return;
 		r[E] = mem[rp[IX] + 0x03];
 		r[D] = mem[rp[IX] + 0x04];
-		rp[HL] = 0x0060;
-		rp[HL] += rp[DE];
+		rp[HL] = rp[DE] + 0x0060;
 		r[A] = mem[rp[HL]];
 		r[A]--;
 		if (r[A] & 0x80) {
 			mem[rp[IX] + 0x07] = 0xff;
-			return;
+		} else {
+			r[C] = r[A];
+			r[A] = (r[A] + 1) & 0x1f;
+			mem[rp[IX] + 0x00] = r[A];
+			rp[HL]++;
+			r[A] = mem[rp[HL]] + 1;
+			mem[rp[IX] + 0x07] = r[A];
 		}
-		r[C] = r[A];
-		r[A]++;
-		r[A] &= 0x1f;
-		mem[rp[IX] + 0x00] = r[A];
-		rp[HL]++;
-		r[A] = mem[rp[HL]];
-		r[A]++;
-		mem[rp[IX] + 0x07] = r[A];
-		return;
 	}
 
 	function r40c0() {
@@ -452,36 +437,19 @@
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'IXL', 'H', 'L', 'E', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
 		r[D] = 0x00;
-		r[E] = r[A];
-		r[A] += r[A];
-		r[A] += r[E];
-		r[E] = r[A];
+		r[E] = r[A] * 3;
 		rp[IX] += rp[DE];
 		r[A] = mem[rp[IX] + 0x01];
-		r[C] = 0x10;
-		if (!(r[A] & 0x80)) {
-			r[C] = r[D];
-		}
-		r[B] = 0x02;
-		if (!(r[A] & 0x40)) {
-			r[B] = r[D];
-		}
-		r[A] &= 0x1f;
-		r[H] = r[A];
+		r[C] = (r[A] & 0x80) ? 0x10 : r[D];
+		r[B] = (r[A] & 0x40) ? 0x02 : r[D];
+		r[H] = r[A] & 0x1f;
 		r[E] = mem[rp[IX] + 0x02];
 		r[A] = mem[rp[IX] + 0x00];
-		rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--;
-		r[A] &= 0xf0;
-		r[A] = (r[A] >> 1) | (r[A] << 7);
-		r[A] = (r[A] >> 1) | (r[A] << 7);
-		r[A] = (r[A] >> 1) | (r[A] << 7);
-		r[A] = (r[A] >> 1) | (r[A] << 7);
-		r[D] = r[A];
-		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
-		r[A] &= 0x0f;
-		r[L] = r[A];
-		if (!(mem[rp[IX] + 0x01] & 0x20)) return;
-		r[D] |= 0x10;
+		r[D] = r[A] >> 4;
+		r[L] = r[A] & 0x0f;
+		if (mem[rp[IX] + 0x01] & 0x20) {
+			r[D] |= 0x10;
+		}
 	}
 
 	function setNoiseReg(mask, val) {
@@ -513,21 +481,15 @@
 		r[E] = mem[0x433c]; r[D] = mem[0x433d];
 
 		rp[HL] += rp[DE];
-		r[A] = mem[rp[IX] + 0x01];
-		r[A] += mem[rp[HL]];
+		r[A] = (mem[rp[IX] + 0x01] + mem[rp[HL]] + mem[0x4344]) << 1;
 
-		// r[A] += 0x00; // SMC
-		r[A] += mem[0x4344];
+		rp[HL] = 0x435f + r[A];
 
-		r[A] += r[A];
-		r[E] = r[A];
-		r[D] = 0x00;
-		rp[HL] = 0x435f;
-		rp[HL] += rp[DE];
 		r[E] = mem[rp[HL]];
 		rp[HL]++;
 		r[D] = mem[rp[HL]];
 		rp[HL] = rp[DE];
+
 		r[E] = mem[rp[SP]]; rp[SP]++; r[D] = mem[rp[SP]]; rp[SP]++;
 		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
 		if (r[D] & 0x10) {
@@ -544,8 +506,7 @@
 		Outputs: ['A', 'cFlag']
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'A', 'pvFlag']
 		*/
-		r[A] = mem[rp[IX] + 0x07];
-		r[A]++;
+		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] === 0x00) return;
 		r[A] = mem[rp[IX] - 0x02];
 		if (r[A] === 0) return;
