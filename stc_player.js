@@ -49,6 +49,8 @@
 	}
 
 	var dataAddr;
+	var b433c;
+	var tempo, tempoCounter;
 
 	function r4000() {
 		/*
@@ -56,11 +58,9 @@
 		Outputs: []
 		Overwrites: ['D', 'zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag', 'B', 'C']
 		*/
-		rp[HL] = 0x443c;
+		rp[HL] = dataAddr = 0x443c;
 		/* DI */
-		r[A] = mem[rp[HL]];
-		mem[0x4078] = r[A];
-		dataAddr = rp[HL];
+		tempo = mem[dataAddr];
 		rp[HL]++;
 		rp[DE] = readPointer();
 		r[A] = mem[rp[DE]];
@@ -88,7 +88,7 @@
 		mem[0x408b] = 0xff;
 		mem[0x4095] = 0xff;
 		mem[0x409f] = 0xff;
-		mem[0x4079] = 0x01;
+		tempoCounter = 0x01;
 		mem[0x4089] = r[L]; mem[0x408a] = r[H];
 		mem[0x4093] = r[L]; mem[0x4094] = r[H];
 		mem[0x409d] = r[L]; mem[0x409e] = r[H];
@@ -103,10 +103,9 @@
 		Outputs: []
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'H', 'IXL', 'L', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
-		r[A] = mem[0x4079] - 1;
-		mem[0x4079] = r[A];
-		if (r[A] === 0x00) {
-			mem[0x4079] = mem[0x4078];
+		tempoCounter--;
+		if (tempoCounter === 0x00) {
+			tempoCounter = tempo;
 			rp[IX] = 0x4084;
 			r4139(rp[IX]);
 			if (sFlag) {
@@ -135,7 +134,7 @@
 		rp[IX] = 0x4084;
 		r4235();
 		r[A] = r[C];
-		mem[0x433c] = r[A];
+		b433c = r[A];
 		r[IXL] = mem[0x4087]; r[IXH] = mem[0x4088];
 		r40c0();
 		r[A] = r[C] | r[B];
@@ -156,7 +155,7 @@
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
-			mem[0x433c] = r[A];
+			b433c = r[A];
 			r[IXL] = mem[0x4091]; r[IXH] = mem[0x4092];
 			r40c0();
 			r[A] = mem[0x40a8] | r[C] | r[B];
@@ -174,7 +173,7 @@
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
-			mem[0x433c] = r[A];
+			b433c = r[A];
 			r[IXL] = mem[0x409b]; r[IXH] = mem[0x409c];
 			r40c0();
 			r[A] = mem[0x40a8];
@@ -447,10 +446,7 @@
 		r[L] = mem[rp[IX] + 0x05];
 		r[H] = mem[rp[IX] + 0x06];
 
-		// rp[DE] = 0x000a; // SMC
-		r[E] = mem[0x433c]; r[D] = mem[0x433d];
-
-		rp[HL] += rp[DE];
+		rp[HL] += b433c;
 		r[A] = (mem[rp[IX] + 0x01] + mem[rp[HL]] + mem[0x4344]) << 1;
 
 		rp[HL] = 0x435f + r[A];
