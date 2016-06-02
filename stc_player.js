@@ -83,20 +83,15 @@
 		mem[rp[HL]] = r[B];
 		while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if (rp[BC] === 0) break;}
 		r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
-		rp[BC] = 0x0021;
-		r[A] = 0x00;
-		r40af();
-		r[A]--;
-		mem[0x408b] = r[A];
-		mem[0x4095] = r[A];
-		mem[0x409f] = r[A];
-		r[A] = 0x01;
-		mem[0x4079] = r[A];
-		rp[HL]++;
+		rp[HL] = scan(rp[HL], 0x0021, 0x00) + 1;
+		mem[0x408b] = 0xff;
+		mem[0x4095] = 0xff;
+		mem[0x409f] = 0xff;
+		mem[0x4079] = 0x01;
 		mem[0x4089] = r[L]; mem[0x408a] = r[H];
 		mem[0x4093] = r[L]; mem[0x4094] = r[H];
 		mem[0x409d] = r[L]; mem[0x409e] = r[H];
-		r441f();
+		writeAY();
 		/* EI */
 		return;
 	}
@@ -117,7 +112,6 @@
 				r[L] = mem[0x407b]; r[H] = mem[0x407c];
 				r[A] = mem[rp[HL]];
 				if (r[A] == 0xff) r40f8();
-				r[L] = mem[0x407b]; r[H] = mem[0x407c];
 				r[L] = mem[0x407b]; r[H] = mem[0x407c];
 				r4198(rp[IX]);
 				mem[0x407b] = r[L]; mem[0x407c] = r[H];
@@ -147,8 +141,7 @@
 		r[A] = (r[A] >> 1) | (r[A] << 7);
 		mem[0x40a8] = r[A];
 		rp[IX] = 0x4084;
-		r[A] = mem[rp[IX] + 0x07];
-		r[A]++;
+		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			setNoiseReg(r[C], r[H]);
 			r4332();
@@ -197,7 +190,7 @@
 		rp[HL] = 0x40ab;
 		mem[rp[HL]] = r[A];
 		r4271();
-		r441f();
+		writeAY();
 	}
 
 	function r40b5() {
@@ -235,37 +228,39 @@
 		return;
 	}
 
-	function r40af() {
+	function scan(addr, len, id) {
 		/*
+		Scan through a table of records, starting from 'addr' and each 'len' bytes long,
+		for one beginning with byte 'id'. Return its address.
+
 		Inputs: ['A', 'B', 'H', 'C', 'L']
 		Outputs: ['H', 'L']
 		Overwrites: ['pvFlag', 'cFlag', 'zFlag', 'sFlag', 'H', 'L']
 		*/
-		while (mem[rp[HL]] != r[A]) {
-			rp[HL] += rp[BC];
+		while (mem[addr] != id) {
+			addr += len;
 		}
+		return addr;
 	}
 
-	function r441f() {
+	function writeAY() {
 		/*
 		Inputs: ['A']
 		Outputs: []
 		Overwrites: ['cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'B', 'C']
 		*/
-		rp[HL] = 0x40ae;
-		r[A] = 0x0d;
-		if (mem[rp[HL]] === 0) {
-			r[A] -= 0x03;
-			rp[HL] -= 3;
+		var addr = 0x40ae;
+		var reg = 0x0d;
+		if (mem[addr] === 0) {
+			reg -= 0x03;
+			addr -= 3;
 		}
-		r[C] = 0xfd;
 		do {
-			r[B] = 0xff;
-			out(rp[BC], r[A]);
-			r[B] = 0xbf;
-			out(rp[BC], mem[rp[HL]]); rp[HL]--;
-			r[A]--;
-		} while (r[A] < 0x80);
+			out(0xfffd, reg);
+			out(0xbffd, mem[addr]); addr--;
+			reg--;
+		} while (reg >= 0);
+		rp[BC] = 0xbffd;  // WHY?!?
 	}
 
 	function r4139(ix) {
@@ -305,7 +300,7 @@
 		r[A] = r[C];
 		r[L] = mem[0x4074]; r[H] = mem[0x4075];
 		rp[BC] = 0x0007;
-		r40af();
+		rp[HL] = scan(rp[HL], rp[BC], r[A]);
 		rp[HL]++;
 		r40b5();
 		mem[0x407b] = r[E]; mem[0x407c] = r[D];
@@ -334,7 +329,7 @@
 				rp[SP]--; mem[rp[SP]] = r[H]; rp[SP]--; mem[rp[SP]] = r[L];
 				rp[BC] = 0x0063;
 				r[L] = mem[0x4076]; r[H] = mem[0x4077];
-				r40af();
+				rp[HL] = scan(rp[HL], rp[BC], r[A]);
 				rp[HL]++;
 				mem[ix + 0x03] = r[L];
 				mem[ix + 0x04] = r[H];
@@ -365,7 +360,7 @@
 				r[A] = 0x00;
 				rp[BC] = 0x0021;
 				r[L] = mem[0x4072]; r[H] = mem[0x4073];
-				r40af();
+				rp[HL] = scan(rp[HL], rp[BC], r[A]);
 				rp[HL]++;
 				mem[ix + 0x05] = r[L];
 				mem[ix + 0x06] = r[H];
@@ -383,7 +378,7 @@
 		rp[SP]--; mem[rp[SP]] = r[H]; rp[SP]--; mem[rp[SP]] = r[L];
 		rp[BC] = 0x0021;
 		r[L] = mem[0x4072]; r[H] = mem[0x4073];
-		r40af();
+		rp[HL] = scan(rp[HL], rp[BC], r[A]);
 		rp[HL]++;
 		mem[ix + 0x05] = r[L];
 		mem[ix + 0x06] = r[H];
