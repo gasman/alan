@@ -52,6 +52,8 @@
 	var b433c;
 	var tempo, tempoCounter;
 
+	var buf407b = new Uint16Array(3);
+
 	function r4000() {
 		/*
 		Inputs: []
@@ -77,8 +79,8 @@
 		mem[0x4074] = r[E]; mem[0x4075] = r[D];
 		rp[HL] = dataAddr + 0x001b;
 		mem[0x4076] = r[L]; mem[0x4077] = r[H];
-		rp[HL] = 0x4081;
-		mem[0x407b] = r[L]; mem[0x407c] = r[H];
+
+		buf407b[0] = 0x4081;
 		for (var i = 0x4082; i < 0x4082 + 0x002c; i++) {
 			mem[i] = 0;
 		}
@@ -103,32 +105,32 @@
 		Outputs: []
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'H', 'IXL', 'L', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
+		var chanPtr;
+
 		tempoCounter--;
 		if (tempoCounter === 0x00) {
 			tempoCounter = tempo;
-			rp[IX] = 0x4084;
-			r4139(rp[IX]);
+			chanPtr = 0x4084;
+			r4139(chanPtr);
 			if (sFlag) {
-				r[L] = mem[0x407b]; r[H] = mem[0x407c];
-				r[A] = mem[rp[HL]];
-				if (r[A] == 0xff) r40f8();
-				r[L] = mem[0x407b]; r[H] = mem[0x407c];
-				r4198(rp[IX]);
-				mem[0x407b] = r[L]; mem[0x407c] = r[H];
+				if (mem[buf407b[0]] == 0xff) r40f8();
+				rp[HL] = buf407b[0];
+				r4198(chanPtr);
+				buf407b[0] = rp[HL];
 			}
-			rp[IX] = 0x408e;
-			r4139(rp[IX]);
+			chanPtr = 0x408e;
+			r4139(chanPtr);
 			if (sFlag) {
-				r[L] = mem[0x407d]; r[H] = mem[0x407e];
-				r4198(rp[IX]);
-				mem[0x407d] = r[L]; mem[0x407e] = r[H];
+				rp[HL] = buf407b[1];
+				r4198(chanPtr);
+				buf407b[1] = rp[HL];
 			}
-			rp[IX] = 0x4098;
-			r4139(rp[IX]);
+			chanPtr = 0x4098;
+			r4139(chanPtr);
 			if (sFlag) {
-				r[L] = mem[0x407f]; r[H] = mem[0x4080];
-				r4198(rp[IX]);
-				mem[0x407f] = r[L]; mem[0x4080] = r[H];
+				rp[HL] = buf407b[2];
+				r4198(chanPtr);
+				buf407b[2] = rp[HL];
 			}
 		}
 		rp[IX] = 0x4084;
@@ -284,12 +286,9 @@
 		rp[BC] = 0x0007;
 		rp[HL] = scan(rp[HL], rp[BC], r[A]);
 		rp[HL]++;
-		rp[DE] = readPointer();
-		mem[0x407b] = r[E]; mem[0x407c] = r[D];
-		rp[DE] = readPointer();
-		mem[0x407d] = r[E]; mem[0x407e] = r[D];
-		rp[DE] = readPointer();
-		mem[0x407f] = r[E]; mem[0x4080] = r[D];
+		buf407b[0] = readPointer();
+		buf407b[1] = readPointer();
+		buf407b[2] = readPointer();
 	}
 
 	function r4198(ix) {
