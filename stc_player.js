@@ -49,7 +49,7 @@
 	}
 
 	var dataAddr;
-	var b433c;
+	var sampleIndex;
 	var w4072, w4074, w4076;
 	var tempo, tempoCounter;
 
@@ -131,7 +131,7 @@
 		rp[IX] = 0x4084;
 		r4235(rp[IX]);
 		r[A] = r[C];
-		b433c = r[A];
+		sampleIndex = r[A];
 		r[IXL] = mem[0x4087]; r[IXH] = mem[0x4088];
 		getSampleData(rp[IX]);
 		mem[0x40a8] = (r[C] | r[B]) >> 1;
@@ -139,7 +139,8 @@
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			setNoiseReg(r[C], r[H]);
-			r4332();
+			r[A] = r[L];
+			rp[HL] = getTone(rp[IX], rp[DE]);
 			mem[0x40a1] = r[L]; mem[0x40a2] = r[H];
 		}
 		rp[HL] = 0x40a9;
@@ -150,13 +151,14 @@
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
-			b433c = r[A];
+			sampleIndex = r[A];
 			r[IXL] = mem[0x4091]; r[IXH] = mem[0x4092];
 			getSampleData(rp[IX]);
 			mem[0x40a8] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x408e;
-			r4332();
+			r[A] = r[L];
+			rp[HL] = getTone(rp[IX], rp[DE]);
 			mem[0x40a3] = r[L]; mem[0x40a4] = r[H];
 		}
 		rp[HL] = 0x40aa;
@@ -167,7 +169,7 @@
 		r[A] = mem[rp[IX] + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
-			b433c = r[A];
+			sampleIndex = r[A];
 			r[IXL] = mem[0x409b]; r[IXH] = mem[0x409c];
 			getSampleData(rp[IX]);
 			r[C] = (r[C] << 1);
@@ -175,7 +177,8 @@
 			mem[0x40a8] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x4098;
-			r4332();
+			r[A] = r[L];
+			rp[HL] = getTone(rp[IX], rp[DE]);
 			mem[0x40a5] = r[L]; mem[0x40a6] = r[H];
 		}
 		rp[HL] = 0x40ab;
@@ -417,28 +420,23 @@
 		}
 	}
 
-	function r4332() {
+	function getTone(chanPtr, samplePitch) {
 		/*
 		Inputs: ['D', 'cFlag', 'zFlag', 'sFlag', 'IXL', 'L', 'E', 'pvFlag', 'IXH']
 		Outputs: ['A', 'H', 'cFlag', 'L']
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag']
 		*/
-		r[A] = r[L];
+		var ornPtr = (mem[chanPtr + 0x05] | (mem[chanPtr + 0x06] << 8)) + sampleIndex;
+		var note = ((mem[chanPtr + 0x01] + mem[ornPtr] + mem[0x4344]) << 1) & 0xff;
 
-		r[L] = mem[rp[IX] + 0x05];
-		r[H] = mem[rp[IX] + 0x06];
+		var addr = 0x435f + note;
 
-		rp[HL] += b433c;
-		var a = ((mem[rp[IX] + 0x01] + mem[rp[HL]] + mem[0x4344]) << 1) & 0xff;
+		var tone = mem[addr] | (mem[addr + 1] << 8);
 
-		rp[HL] = 0x435f + a;
-
-		rp[HL] = mem[rp[HL]] | (mem[rp[HL] + 1] << 8);
-
-		if (r[D] & 0x10) {
-			rp[HL] += (rp[DE] & 0x0fff);
+		if (samplePitch & 0x1000) {
+			return tone + (samplePitch & 0x0fff);
 		} else {
-			rp[HL] -= rp[DE];
+			return tone - samplePitch;
 		}
 	}
 
