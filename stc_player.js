@@ -54,59 +54,51 @@
 		Outputs: []
 		Overwrites: ['D', 'zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag', 'B', 'C']
 		*/
-		var pc = 0x4000;
-		while (true) {
-			switch (pc) {
-				case 0x4000:
-					rp[HL] = 0x443c;
-					pc = 0x4009; break;
-				case 0x4009:
-					/* DI */
-					r[A] = mem[rp[HL]];
-					mem[0x4078] = r[A];
-					mem[0x40bb] = r[L]; mem[0x40bc] = r[H];
-					rp[HL]++;
-					r40b5();
-					r[A] = mem[rp[DE]];
-					rp[DE]++;
-					r[A]++;
-					mem[0x407a] = r[A];
-					mem[0x4070] = r[E]; mem[0x4071] = r[D];
-					r40b5();
-					mem[0x4072] = r[E]; mem[0x4073] = r[D];
-					rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
-					r40b5();
-					mem[0x4074] = r[E]; mem[0x4075] = r[D];
-					rp[HL] = 0x001b;
-					r40ba();
-					rp[HL] = rp[DE];
-					mem[0x4076] = r[L]; mem[0x4077] = r[H];
-					rp[HL] = 0x4081;
-					mem[0x407b] = r[L]; mem[0x407c] = r[H];
-					rp[HL] = 0x4082;
-					rp[DE] = 0x4083;
-					rp[BC] = 0x002c;
-					mem[rp[HL]] = r[B];
-					while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if (rp[BC] === 0) break;}
-					r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
-					rp[BC] = 0x0021;
-					r[A] = 0x00;
-					r40af();
-					r[A]--;
-					mem[0x408b] = r[A];
-					mem[0x4095] = r[A];
-					mem[0x409f] = r[A];
-					r[A] = 0x01;
-					mem[0x4079] = r[A];
-					rp[HL]++;
-					mem[0x4089] = r[L]; mem[0x408a] = r[H];
-					mem[0x4093] = r[L]; mem[0x4094] = r[H];
-					mem[0x409d] = r[L]; mem[0x409e] = r[H];
-					r441f();
-					/* EI */
-					return;
-			}
-		}
+		rp[HL] = 0x443c;
+		/* DI */
+		r[A] = mem[rp[HL]];
+		mem[0x4078] = r[A];
+		mem[0x40bb] = r[L]; mem[0x40bc] = r[H];
+		rp[HL]++;
+		r40b5();
+		r[A] = mem[rp[DE]];
+		rp[DE]++;
+		r[A]++;
+		mem[0x407a] = r[A];
+		mem[0x4070] = r[E]; mem[0x4071] = r[D];
+		r40b5();
+		mem[0x4072] = r[E]; mem[0x4073] = r[D];
+		rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
+		r40b5();
+		mem[0x4074] = r[E]; mem[0x4075] = r[D];
+		rp[HL] = 0x001b;
+		r40ba();
+		rp[HL] = rp[DE];
+		mem[0x4076] = r[L]; mem[0x4077] = r[H];
+		rp[HL] = 0x4081;
+		mem[0x407b] = r[L]; mem[0x407c] = r[H];
+		rp[HL] = 0x4082;
+		rp[DE] = 0x4083;
+		rp[BC] = 0x002c;
+		mem[rp[HL]] = r[B];
+		while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if (rp[BC] === 0) break;}
+		r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
+		rp[BC] = 0x0021;
+		r[A] = 0x00;
+		r40af();
+		r[A]--;
+		mem[0x408b] = r[A];
+		mem[0x4095] = r[A];
+		mem[0x409f] = r[A];
+		r[A] = 0x01;
+		mem[0x4079] = r[A];
+		rp[HL]++;
+		mem[0x4089] = r[L]; mem[0x408a] = r[H];
+		mem[0x4093] = r[L]; mem[0x4094] = r[H];
+		mem[0x409d] = r[L]; mem[0x409e] = r[H];
+		r441f();
+		/* EI */
+		return;
 	}
 
 	function r4006() {
@@ -219,26 +211,7 @@
 					rp[HL] = 0x40ab;
 					mem[rp[HL]] = r[A];
 					r4271();
-					pc = 0x441f; break;
-				case 0x441f:
-					rp[HL] = 0x40ae;
-					r[A] = 0x00;
-					zFlag = (r[A] | mem[rp[HL]]) === 0;
-					r[A] = 0x0d;
-					if (!zFlag) {pc = 0x442d; break;}
-					r[A] -= 0x03;
-					rp[HL]--;
-					rp[HL]--;
-					rp[HL]--;
-				case 0x442d:
-					r[C] = 0xfd;
-				case 0x442f:
-					r[B] = 0xff;
-					out(rp[BC], r[A]);
-					r[B] = 0xbf;
-					out(rp[BC], mem[rp[HL]]); rp[HL]--;
-					r[A]--; sFlag = !!(r[A] & 0x80);
-					if (!sFlag) {pc = 0x442f; break;}
+					r441f();
 					return;
 			}
 		}
@@ -285,15 +258,10 @@
 		Outputs: ['H', 'L']
 		Overwrites: ['pvFlag', 'cFlag', 'zFlag', 'sFlag', 'H', 'L']
 		*/
-		var pc = 0x40af;
 		while (true) {
-			switch (pc) {
-				case 0x40af:
-					zFlag = (r[A] == mem[rp[HL]]);
-					if (zFlag) return;
-					rp[HL] += rp[BC];
-					pc = 0x40af; break;
-			}
+			zFlag = (r[A] == mem[rp[HL]]);
+			if (zFlag) return;
+			rp[HL] += rp[BC];
 		}
 	}
 
@@ -303,30 +271,24 @@
 		Outputs: []
 		Overwrites: ['cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'B', 'C']
 		*/
-		var pc = 0x441f;
+		rp[HL] = 0x40ae;
+		r[A] = 0x00;
+		zFlag = (r[A] | mem[rp[HL]]) === 0;
+		r[A] = 0x0d;
+		if (zFlag) {
+			r[A] -= 0x03;
+			rp[HL]--;
+			rp[HL]--;
+			rp[HL]--;
+		}
+		r[C] = 0xfd;
 		while (true) {
-			switch (pc) {
-				case 0x441f:
-					rp[HL] = 0x40ae;
-					r[A] = 0x00;
-					zFlag = (r[A] | mem[rp[HL]]) === 0;
-					r[A] = 0x0d;
-					if (!zFlag) {pc = 0x442d; break;}
-					r[A] -= 0x03;
-					rp[HL]--;
-					rp[HL]--;
-					rp[HL]--;
-				case 0x442d:
-					r[C] = 0xfd;
-				case 0x442f:
-					r[B] = 0xff;
-					out(rp[BC], r[A]);
-					r[B] = 0xbf;
-					out(rp[BC], mem[rp[HL]]); rp[HL]--;
-					r[A]--; sFlag = !!(r[A] & 0x80);
-					if (!sFlag) {pc = 0x442f; break;}
-					return;
-			}
+			r[B] = 0xff;
+			out(rp[BC], r[A]);
+			r[B] = 0xbf;
+			out(rp[BC], mem[rp[HL]]); rp[HL]--;
+			r[A]--; sFlag = !!(r[A] & 0x80);
+			if (sFlag) return;
 		}
 	}
 
@@ -349,43 +311,36 @@
 		Outputs: ['C']
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'E', 'B', 'C']
 		*/
-		var pc = 0x40f8;
-		while (true) {
-			switch (pc) {
-				case 0x40f8:
-					r[A] = mem[0x40a0];
-					r[C] = r[A];
-					rp[HL] = 0x407a;
-					cFlag = (r[A] < mem[rp[HL]]);
-					if (cFlag) {pc = 0x4105; break;}
-					r[A] = 0x00;
-					r[C] = r[A];
-				case 0x4105:
-					r[A]++;
-					mem[0x40a0] = r[A];
-					r[L] = r[C];
-					r[H] = 0x00;
-					rp[HL] += rp[HL];
-					r[E] = mem[0x4070]; r[D] = mem[0x4071];
-					rp[HL] += rp[DE];
-					r[C] = mem[rp[HL]];
-					rp[HL]++;
-					r[A] = mem[rp[HL]];
-					mem[0x4344] = r[A];
-					r[A] = r[C];
-					r[L] = mem[0x4074]; r[H] = mem[0x4075];
-					rp[BC] = 0x0007;
-					r40af();
-					rp[HL]++;
-					r40b5();
-					mem[0x407b] = r[E]; mem[0x407c] = r[D];
-					r40b5();
-					mem[0x407d] = r[E]; mem[0x407e] = r[D];
-					r40b5();
-					mem[0x407f] = r[E]; mem[0x4080] = r[D];
-					return;
-			}
+		r[A] = mem[0x40a0];
+		r[C] = r[A];
+		rp[HL] = 0x407a;
+		cFlag = (r[A] < mem[rp[HL]]);
+		if (!cFlag) {
+			r[A] = 0x00;
+			r[C] = r[A];
 		}
+		r[A]++;
+		mem[0x40a0] = r[A];
+		r[L] = r[C];
+		r[H] = 0x00;
+		rp[HL] += rp[HL];
+		r[E] = mem[0x4070]; r[D] = mem[0x4071];
+		rp[HL] += rp[DE];
+		r[C] = mem[rp[HL]];
+		rp[HL]++;
+		r[A] = mem[rp[HL]];
+		mem[0x4344] = r[A];
+		r[A] = r[C];
+		r[L] = mem[0x4074]; r[H] = mem[0x4075];
+		rp[BC] = 0x0007;
+		r40af();
+		rp[HL]++;
+		r40b5();
+		mem[0x407b] = r[E]; mem[0x407c] = r[D];
+		r40b5();
+		mem[0x407d] = r[E]; mem[0x407e] = r[D];
+		r40b5();
+		mem[0x407f] = r[E]; mem[0x4080] = r[D];
 	}
 
 	function r4198() {
@@ -533,47 +488,40 @@
 		Outputs: ['D', 'H', 'IXL', 'L', 'E', 'B', 'C', 'IXH']
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'IXL', 'H', 'L', 'E', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
-		var pc = 0x40c0;
-		while (true) {
-			switch (pc) {
-				case 0x40c0:
-					r[D] = 0x00;
-					r[E] = r[A];
-					r[A] += r[A];
-					r[A] += r[E];
-					r[E] = r[A];
-					rp[IX] += rp[DE];
-					r[A] = mem[(rp[IX] + 0x01) & 0xffff];
-					zFlag = !(r[A] & 0x80);
-					r[C] = 0x10;
-					if (!zFlag) {pc = 0x40d3; break;}
-					r[C] = r[D];
-				case 0x40d3:
-					zFlag = !(r[A] & 0x40);
-					r[B] = 0x02;
-					if (!zFlag) {pc = 0x40db; break;}
-					r[B] = r[D];
-				case 0x40db:
-					/* FIXME: I bet we don't need all these flags */ r[A] &= 0x1f;
-					r[H] = r[A];
-					r[E] = mem[(rp[IX] + 0x02) & 0xffff];
-					r[A] = mem[(rp[IX] + 0x00) & 0xffff];
-					tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
-					r[A] &= 0xf0;
-					r[A] = (r[A] >> 1) | (r[A] << 7);
-					r[A] = (r[A] >> 1) | (r[A] << 7);
-					r[A] = (r[A] >> 1) | (r[A] << 7);
-					r[A] = (r[A] >> 1) | (r[A] << 7);
-					r[D] = r[A];
-					rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
-					r[A] &= 0x0f;
-					r[L] = r[A];
-					zFlag = !(mem[(rp[IX] + 0x01) & 0xffff] & 0x20);
-					if (zFlag) return;
-					r[D] |= 0x10;
-					return;
-			}
+		r[D] = 0x00;
+		r[E] = r[A];
+		r[A] += r[A];
+		r[A] += r[E];
+		r[E] = r[A];
+		rp[IX] += rp[DE];
+		r[A] = mem[(rp[IX] + 0x01) & 0xffff];
+		zFlag = !(r[A] & 0x80);
+		r[C] = 0x10;
+		if (zFlag) {
+			r[C] = r[D];
 		}
+		zFlag = !(r[A] & 0x40);
+		r[B] = 0x02;
+		if (zFlag) {
+			r[B] = r[D];
+		}
+		r[A] &= 0x1f;
+		r[H] = r[A];
+		r[E] = mem[(rp[IX] + 0x02) & 0xffff];
+		r[A] = mem[(rp[IX] + 0x00) & 0xffff];
+		tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
+		r[A] &= 0xf0;
+		r[A] = (r[A] >> 1) | (r[A] << 7);
+		r[A] = (r[A] >> 1) | (r[A] << 7);
+		r[A] = (r[A] >> 1) | (r[A] << 7);
+		r[A] = (r[A] >> 1) | (r[A] << 7);
+		r[D] = r[A];
+		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
+		r[A] &= 0x0f;
+		r[L] = r[A];
+		zFlag = !(mem[(rp[IX] + 0x01) & 0xffff] & 0x20);
+		if (zFlag) return;
+		r[D] |= 0x10;
 	}
 
 	function r4269() {
@@ -585,7 +533,7 @@
 		Overwrites: ['A', 'pvFlag', 'cFlag', 'zFlag', 'sFlag']
 		*/
 		r[A] = r[C];
-		/* FIXME: I bet we don't need all these flags */ zFlag = (r[A] === 0); cFlag = false; sFlag = !!(r[A] & 0x80);
+		zFlag = (r[A] === 0); cFlag = false; sFlag = !!(r[A] & 0x80);
 		if (!zFlag) return;
 		r[A] = r[H];
 		mem[0x40a7] = r[A];
@@ -598,47 +546,40 @@
 		Outputs: ['A', 'H', 'cFlag', 'L']
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag']
 		*/
-		var pc = 0x4332;
-		while (true) {
-			switch (pc) {
-				case 0x4332:
-					r[A] = r[L];
-					tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
-					rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
-					r[L] = mem[(rp[IX] + 0x05) & 0xffff];
-					r[H] = mem[(rp[IX] + 0x06) & 0xffff];
+		r[A] = r[L];
+		tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
+		rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
+		r[L] = mem[(rp[IX] + 0x05) & 0xffff];
+		r[H] = mem[(rp[IX] + 0x06) & 0xffff];
 
-					// rp[DE] = 0x000a; // SMC
-					r[E] = mem[0x433c]; r[D] = mem[0x433d];
+		// rp[DE] = 0x000a; // SMC
+		r[E] = mem[0x433c]; r[D] = mem[0x433d];
 
-					rp[HL] += rp[DE];
-					r[A] = mem[(rp[IX] + 0x01) & 0xffff];
-					r[A] += mem[rp[HL]];
+		rp[HL] += rp[DE];
+		r[A] = mem[(rp[IX] + 0x01) & 0xffff];
+		r[A] += mem[rp[HL]];
 
-					// r[A] += 0x00; // SMC
-					r[A] += mem[0x4344];
+		// r[A] += 0x00; // SMC
+		r[A] += mem[0x4344];
 
-					r[A] += r[A];
-					r[E] = r[A];
-					r[D] = 0x00;
-					rp[HL] = 0x435f;
-					rp[HL] += rp[DE];
-					r[E] = mem[rp[HL]];
-					rp[HL]++;
-					r[D] = mem[rp[HL]];
-					rp[HL] = rp[DE];
-					r[E] = mem[rp[SP]]; rp[SP]++; r[D] = mem[rp[SP]]; rp[SP]++;
-					rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
-					zFlag = !(r[D] & 0x10);
-					if (zFlag) {pc = 0x435b; break;}
-					r[D] &= 0xef;
-					tmp = rp[HL] + rp[DE]; rp[HL] = tmp; cFlag = (tmp >= 0x10000);
-					return;
-				case 0x435b:
-					cFlag = false;
-					tmp = rp[HL] - rp[DE] - cFlag; rp[HL] = tmp; cFlag = (tmp < 0);
-					return;
-			}
+		r[A] += r[A];
+		r[E] = r[A];
+		r[D] = 0x00;
+		rp[HL] = 0x435f;
+		rp[HL] += rp[DE];
+		r[E] = mem[rp[HL]];
+		rp[HL]++;
+		r[D] = mem[rp[HL]];
+		rp[HL] = rp[DE];
+		r[E] = mem[rp[SP]]; rp[SP]++; r[D] = mem[rp[SP]]; rp[SP]++;
+		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
+		zFlag = !(r[D] & 0x10);
+		if (!zFlag) {
+			r[D] &= 0xef;
+			tmp = rp[HL] + rp[DE]; rp[HL] = tmp; cFlag = (tmp >= 0x10000);
+		} else {
+			cFlag = false;
+			tmp = rp[HL] - rp[DE] - cFlag; rp[HL] = tmp; cFlag = (tmp < 0);
 		}
 	}
 
@@ -648,28 +589,20 @@
 		Outputs: ['A', 'cFlag']
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'A', 'pvFlag']
 		*/
-		var pc = 0x4271;
-		while (true) {
-			switch (pc) {
-				case 0x4271:
-					r[A] = mem[(rp[IX] + 0x07) & 0xffff];
-					r[A]++; zFlag = (r[A] === 0x00);
-					if (zFlag) return;
-					r[A] = mem[(rp[IX] - 0x02) & 0xffff];
-					zFlag = (r[A] === 0); cFlag = false;
-					if (zFlag) return;
-					zFlag = (r[A] == 0x02); cFlag = (r[A] < 0x02);
-					if (zFlag) {pc = 0x4287; break;}
-					mem[(rp[IX] - 0x02) & 0xffff] = 0x02;
-					pc = 0x428b; break;
-				case 0x4287:
-					r[A] = 0x00; cFlag = false;
-					mem[0x40ae] = r[A];
-				case 0x428b:
-					mem[rp[HL]] |= 0x10;
-					return;
-			}
+		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
+		r[A]++; zFlag = (r[A] === 0x00);
+		if (zFlag) return;
+		r[A] = mem[(rp[IX] - 0x02) & 0xffff];
+		zFlag = (r[A] === 0); cFlag = false;
+		if (zFlag) return;
+		zFlag = (r[A] == 0x02); cFlag = (r[A] < 0x02);
+		if (!zFlag) {
+			mem[(rp[IX] - 0x02) & 0xffff] = 0x02;
+		} else {
+			r[A] = 0x00; cFlag = false;
+			mem[0x40ae] = r[A];
 		}
+		mem[rp[HL]] |= 0x10;
 	}
 
 	function gotData(stc) {
