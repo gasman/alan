@@ -54,6 +54,7 @@
 	var tempo, tempoCounter;
 
 	var patternPtrs = new Uint16Array(3);
+	var ayRegBuffer = new Uint16Array(0x0e);
 
 	function r4000() {
 		/*
@@ -133,18 +134,16 @@
 		r[A] = r[C];
 		sampleIndex = r[A];
 		getSampleData(mem[chanPtr + 3] | (mem[chanPtr + 4] << 8));
-		mem[0x40a8] = (r[C] | r[B]) >> 1;
+		ayRegBuffer[0x07] = (r[C] | r[B]) >> 1;
 		r[A] = mem[chanPtr + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
 			rp[HL] = getTone(chanPtr, rp[DE]);
-			mem[0x40a1] = r[L]; mem[0x40a2] = r[H];
+			ayRegBuffer[0x00] = r[L]; ayRegBuffer[0x01] = r[H];
 		}
-		rp[HL] = 0x40a9;
-		mem[rp[HL]] = r[A];
-		r4271(chanPtr);
-
+		ayRegBuffer[0x08] = r[A];
+		r4271(chanPtr, 0x08);
 
 		chanPtr = 0x408e;
 		r4235(chanPtr);
@@ -153,15 +152,14 @@
 			r[A] = r[C];
 			sampleIndex = r[A];
 			getSampleData(mem[chanPtr + 3] | (mem[chanPtr + 4] << 8));
-			mem[0x40a8] |= r[C] | r[B];
+			ayRegBuffer[0x07] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
 			rp[HL] = getTone(chanPtr, rp[DE]);
-			mem[0x40a3] = r[L]; mem[0x40a4] = r[H];
+			ayRegBuffer[0x02] = r[L]; ayRegBuffer[0x03] = r[H];
 		}
-		rp[HL] = 0x40aa;
-		mem[rp[HL]] = r[A];
-		r4271(chanPtr);
+		ayRegBuffer[0x09] = r[A];
+		r4271(chanPtr, 0x09);
 
 		chanPtr = 0x4098;
 		r4235(chanPtr);
@@ -172,15 +170,14 @@
 			getSampleData(mem[chanPtr + 3] | (mem[chanPtr + 4] << 8));
 			r[C] = (r[C] << 1);
 			r[B] = (r[B] << 1);
-			mem[0x40a8] |= r[C] | r[B];
+			ayRegBuffer[0x07] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
 			rp[HL] = getTone(chanPtr, rp[DE]);
-			mem[0x40a5] = r[L]; mem[0x40a6] = r[H];
+			ayRegBuffer[0x04] = r[L]; ayRegBuffer[0x05] = r[H];
 		}
-		rp[HL] = 0x40ab;
-		mem[rp[HL]] = r[A];
-		r4271(chanPtr);
+		ayRegBuffer[0x0a] = r[A];
+		r4271(chanPtr, 0x0a);
 
 		writeAY();
 	}
@@ -223,15 +220,13 @@
 		Outputs: []
 		Overwrites: ['cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'B', 'C']
 		*/
-		var addr = 0x40ae;
 		var reg = 0x0d;
-		if (mem[addr] === 0) {
+		if (ayRegBuffer[reg] === 0) {
 			reg -= 0x03;
-			addr -= 3;
 		}
 		do {
 			out(0xfffd, reg);
-			out(0xbffd, mem[addr]); addr--;
+			out(0xbffd, ayRegBuffer[reg]);
 			reg--;
 		} while (reg >= 0);
 		rp[BC] = 0xbffd;  // WHY?!?
@@ -320,9 +315,9 @@
 				rp[HL] = pushedHL + 1;
 			} else if (r[A] < 0x8f) {
 				r[A] -= 0x80;
-				mem[0x40ae] = r[A];
+				ayRegBuffer[0x0d] = r[A];
 				rp[HL]++;
-				mem[0x40ac] = mem[rp[HL]];
+				ayRegBuffer[0x0b] = mem[rp[HL]];
 				rp[HL]++;
 				mem[chanPtr - 0x02] = 0x01;
 				pushedHL = rp[HL];
@@ -414,7 +409,7 @@
 		Overwrites: ['A', 'pvFlag', 'cFlag', 'zFlag', 'sFlag']
 		*/
 		if (mask === 0) {
-			mem[0x40a7] = val;
+			ayRegBuffer[0x06] = val;
 		}
 	}
 
@@ -451,7 +446,7 @@
 		}
 	}
 
-	function r4271(chanPtr) {
+	function r4271(chanPtr, volReg) {
 		/*
 		Inputs: ['IXL', 'IXH', 'H', 'L']
 		Outputs: ['A', 'cFlag']
@@ -462,11 +457,11 @@
 		if (v === 0) {
 			return;
 		} else if (v == 0x02) {
-			mem[0x40ae] = 0x00;
+			ayRegBuffer[0x0d] = 0x00;
 		} else {
 			mem[chanPtr - 0x02] = 0x02;
 		}
-		mem[rp[HL]] |= 0x10;
+		ayRegBuffer[volReg] |= 0x10;
 	}
 
 	function gotData(stc) {
