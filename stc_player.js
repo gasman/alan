@@ -282,14 +282,13 @@
 			rp[HL]--;
 		}
 		r[C] = 0xfd;
-		while (true) {
+		do {
 			r[B] = 0xff;
 			out(rp[BC], r[A]);
 			r[B] = 0xbf;
 			out(rp[BC], mem[rp[HL]]); rp[HL]--;
-			r[A]--; sFlag = !!(r[A] & 0x80);
-			if (sFlag) return;
-		}
+			r[A]--;
+		} while (r[A] < 0x80);
 	}
 
 	function r4139() {
@@ -314,8 +313,7 @@
 		r[A] = mem[0x40a0];
 		r[C] = r[A];
 		rp[HL] = 0x407a;
-		cFlag = (r[A] < mem[rp[HL]]);
-		if (!cFlag) {
+		if (r[A] >= mem[rp[HL]]) {
 			r[A] = 0x00;
 			r[C] = r[A];
 		}
