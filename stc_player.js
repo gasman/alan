@@ -30,7 +30,7 @@
 		IYH = 11; IYL = 10;
 	}
 
-	var zFlag = false, cFlag = false, sFlag = false, pvFlag = false;
+	var sFlag = false;
 
 	mem = new Uint8Array(0x10000);
 	var tmp;
@@ -147,7 +147,7 @@
 		r40c0();
 		r[A] = r[C];
 		r[A] |= r[B];
-		cFlag = !!(r[A] & 0x01); r[A] = (r[A] >> 1) | (r[A] << 7);
+		r[A] = (r[A] >> 1) | (r[A] << 7);
 		mem[0x40a8] = r[A];
 		rp[IX] = 0x4084;
 		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
@@ -260,10 +260,8 @@
 		Overwrites: ['cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'B', 'C']
 		*/
 		rp[HL] = 0x40ae;
-		r[A] = 0x00;
-		zFlag = (r[A] | mem[rp[HL]]) === 0;
 		r[A] = 0x0d;
-		if (zFlag) {
+		if (mem[rp[HL]] === 0) {
 			r[A] -= 0x03;
 			rp[HL]--;
 			rp[HL]--;
@@ -416,20 +414,20 @@
 		r[A]++;
 		if (r[A] === 0x00) return;
 		r[A]--;
-		r[A]--; zFlag = (r[A] === 0x00); sFlag = !!(r[A] & 0x80); pvFlag = ((r[A] & 0x7f) == 0x7f);
+		r[A]--;
+		var aWasZero = (r[A] === 0x00);
 		mem[(rp[IX] + 0x07) & 0xffff] = r[A];
-		tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
 		r[A] = mem[(rp[IX] + 0x00) & 0xffff];
 		r[C] = r[A];
 		r[A]++;
 		r[A] &= 0x1f;
 		mem[(rp[IX] + 0x00) & 0xffff] = r[A];
-		tmp = mem[rp[SP]]; rp[SP] += 2; cFlag = !!(tmp & 0x01); zFlag = !!(tmp & 0x40);
-		if (!zFlag) return;
+
+		if (!aWasZero) return;
 		r[E] = mem[(rp[IX] + 0x03) & 0xffff];
 		r[D] = mem[(rp[IX] + 0x04) & 0xffff];
 		rp[HL] = 0x0060;
-		tmp = rp[HL] + rp[DE]; rp[HL] = tmp; cFlag = (tmp >= 0x10000);
+		rp[HL] += rp[DE];
 		r[A] = mem[rp[HL]];
 		r[A]--;
 		if (r[A] & 0x80) {
@@ -438,7 +436,7 @@
 		}
 		r[C] = r[A];
 		r[A]++;
-		r[A] &= 0x1f; cFlag = false;
+		r[A] &= 0x1f;
 		mem[(rp[IX] + 0x00) & 0xffff] = r[A];
 		rp[HL]++;
 		r[A] = mem[rp[HL]];
@@ -472,7 +470,7 @@
 		r[H] = r[A];
 		r[E] = mem[(rp[IX] + 0x02) & 0xffff];
 		r[A] = mem[(rp[IX] + 0x00) & 0xffff];
-		tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
+		rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--;
 		r[A] &= 0xf0;
 		r[A] = (r[A] >> 1) | (r[A] << 7);
 		r[A] = (r[A] >> 1) | (r[A] << 7);
@@ -534,9 +532,9 @@
 		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
 		if (r[D] & 0x10) {
 			r[D] &= 0xef;
-			tmp = rp[HL] + rp[DE]; rp[HL] = tmp; cFlag = (tmp >= 0x10000);
+			rp[HL] += rp[DE];
 		} else {
-			tmp = rp[HL] - rp[DE]; rp[HL] = tmp; cFlag = (tmp < 0);
+			rp[HL] -= rp[DE];
 		}
 	}
 
@@ -550,13 +548,11 @@
 		r[A]++;
 		if (r[A] === 0x00) return;
 		r[A] = mem[(rp[IX] - 0x02) & 0xffff];
-		cFlag = false;
 		if (r[A] === 0) return;
-		cFlag = (r[A] < 0x02);
 		if (r[A] != 0x02) {
 			mem[(rp[IX] - 0x02) & 0xffff] = 0x02;
 		} else {
-			r[A] = 0x00; cFlag = false;
+			r[A] = 0x00;
 			mem[0x40ae] = r[A];
 		}
 		mem[rp[HL]] |= 0x10;
