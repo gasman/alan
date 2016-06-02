@@ -75,9 +75,7 @@
 
 		r40b5();
 		mem[0x4074] = r[E]; mem[0x4075] = r[D];
-		rp[HL] = 0x001b;
-		offsetToAddr();
-		rp[HL] = rp[DE];
+		rp[HL] = dataAddr + 0x001b;
 		mem[0x4076] = r[L]; mem[0x4077] = r[H];
 		rp[HL] = 0x4081;
 		mem[0x407b] = r[L]; mem[0x407c] = r[H];
@@ -207,17 +205,6 @@
 		r[D] = mem[rp[HL]];
 		rp[HL]++;
 		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
-
-		rp[HL] += dataAddr;
-		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
-	}
-
-	function offsetToAddr() {
-		/*
-		Inputs: ['D', 'H', 'E', 'L']
-		Outputs: ['D', 'E', 'H', 'C', 'L']
-		Overwrites: ['D', 'cFlag', 'H', 'L', 'E', 'B', 'C']
-		*/
 
 		rp[HL] += dataAddr;
 		tmp = rp[DE]; rp[DE] = rp[HL]; rp[HL] = tmp;
