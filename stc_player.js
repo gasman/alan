@@ -79,11 +79,9 @@
 		mem[0x4076] = r[L]; mem[0x4077] = r[H];
 		rp[HL] = 0x4081;
 		mem[0x407b] = r[L]; mem[0x407c] = r[H];
-		rp[HL] = 0x4082;
-		rp[DE] = 0x4083;
-		rp[BC] = 0x002c;
-		mem[rp[HL]] = r[B];
-		while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if (rp[BC] === 0) break;}
+		for (var i = 0x4082; i < 0x4082 + 0x002c; i++) {
+			mem[i] = 0;
+		}
 		r[L] = mem[rp[SP]]; rp[SP]++; r[H] = mem[rp[SP]]; rp[SP]++;
 		rp[HL] = scan(rp[HL], 0x0021, 0x00) + 1;
 		mem[0x408b] = 0xff;
