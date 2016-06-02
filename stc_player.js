@@ -107,21 +107,15 @@
 			chanPtr = 0x4084;
 			if (advanceMysteryCounter(chanPtr)) {
 				if (mem[patternPtrs[0]] == 0xff) r40f8();
-				rp[HL] = patternPtrs[0];
-				fetchPatternData(chanPtr);
-				patternPtrs[0] = rp[HL];
+				patternPtrs[0] = fetchPatternData(chanPtr, patternPtrs[0]);
 			}
 			chanPtr = 0x408e;
 			if (advanceMysteryCounter(chanPtr)) {
-				rp[HL] = patternPtrs[1];
-				fetchPatternData(chanPtr);
-				patternPtrs[1] = rp[HL];
+				patternPtrs[1] = fetchPatternData(chanPtr, patternPtrs[1]);
 			}
 			chanPtr = 0x4098;
 			if (advanceMysteryCounter(chanPtr)) {
-				rp[HL] = patternPtrs[2];
-				fetchPatternData(chanPtr);
-				patternPtrs[2] = rp[HL];
+				patternPtrs[2] = fetchPatternData(chanPtr, patternPtrs[2]);
 			}
 		}
 		chanPtr = 0x4084;
@@ -270,7 +264,7 @@
 		patternPtrs[2] = readPointer();
 	}
 
-	function fetchPatternData(chanPtr) {
+	function fetchPatternData(chanPtr, patternPtr) {
 		/*
 		Inputs: ['IXL', 'IXH', 'H', 'L']
 		Outputs: ['H', 'C', 'cFlag', 'L']
@@ -278,61 +272,55 @@
 		*/
 		var pushedHL;
 		while (true) {
-			r[A] = mem[rp[HL]];
-			if (r[A] < 0x60) {
-				mem[chanPtr + 0x01] = r[A];
+			var command = mem[patternPtr];
+			if (command < 0x60) {
+				mem[chanPtr + 0x01] = command;
 				mem[chanPtr + 0x00] = 0x00;
 				mem[chanPtr + 0x07] = 0x20;
-				rp[HL]++;
-				return;
-			} else if (r[A] < 0x70) {
-				r[A] -= 0x60;
-				pushedHL = rp[HL];
+				patternPtr++;
+				return patternPtr;
+			} else if (command < 0x70) {
+				command -= 0x60;
 				rp[BC] = 0x0063; /* seemingly needed... */
-				rp[HL] = scan(w4076, 0x0063, r[A]) + 1;
+				rp[HL] = scan(w4076, 0x0063, command) + 1;
 				mem[chanPtr + 0x03] = r[L];
 				mem[chanPtr + 0x04] = r[H];
-				rp[HL] = pushedHL + 1;
-			} else if (r[A] < 0x80) {
-				r[A] -= 0x70;
-				pushedHL = rp[HL];
-				r41f6(chanPtr);
-				rp[HL] = pushedHL + 1;
-			} else if (r[A] == 0x80) {
-				rp[HL]++;
+				patternPtr++;
+			} else if (command < 0x80) {
+				command -= 0x70;
+				r41f6(chanPtr, command);
+				patternPtr++;
+			} else if (command == 0x80) {
+				patternPtr++;
 				mem[chanPtr + 0x07] = 0xff;
-				return;
-			} else if (r[A] == 0x81) {
-				rp[HL]++;
-				return;
-			} else if (r[A] == 0x82) {
-				r[A] = 0x00;
-				pushedHL = rp[HL];
-				r41f6(chanPtr);
-				rp[HL] = pushedHL + 1;
-			} else if (r[A] < 0x8f) {
-				r[A] -= 0x80;
-				ayRegBuffer[0x0d] = r[A];
-				rp[HL]++;
-				ayRegBuffer[0x0b] = mem[rp[HL]];
-				rp[HL]++;
+				return patternPtr;
+			} else if (command == 0x81) {
+				patternPtr++;
+				return patternPtr;
+			} else if (command == 0x82) {
+				r41f6(chanPtr, 0x00);
+				patternPtr++;
+			} else if (command < 0x8f) {
+				command -= 0x80;
+				ayRegBuffer[0x0d] = command;
+				patternPtr++;
+				ayRegBuffer[0x0b] = mem[patternPtr];
+				patternPtr++;
 				mem[chanPtr - 0x02] = 0x01;
-				pushedHL = rp[HL];
 				rp[HL] = scan(w4072, 0x0021, 0x00) + 1;
 				mem[chanPtr + 0x05] = r[L];
 				mem[chanPtr + 0x06] = r[H];
-				rp[HL] = pushedHL;
 			} else {
-				r[A] -= 0xa1;
-				mem[chanPtr + 0x02] = r[A];
-				mem[chanPtr - 0x01] = r[A];
-				rp[HL]++;
+				command = (command - 0xa1) & 0xff;
+				mem[chanPtr + 0x02] = command;
+				mem[chanPtr - 0x01] = command;
+				patternPtr++;
 			}
 		}
 	}
 
-	function r41f6(chanPtr) {
-		rp[HL] = scan(w4072, 0x0021, r[A]) + 1;
+	function r41f6(chanPtr, id) {
+		rp[HL] = scan(w4072, 0x0021, id) + 1;
 		mem[chanPtr + 0x05] = r[L];
 		mem[chanPtr + 0x06] = r[H];
 		mem[chanPtr - 0x02] = 0x00;
