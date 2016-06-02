@@ -108,9 +108,9 @@
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'H', 'IXL', 'L', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
 		r[A] = mem[0x4079];
-		r[A]--; zFlag = (r[A] === 0x00);
+		r[A]--;
 		mem[0x4079] = r[A];
-		if (zFlag) {
+		if (r[A] === 0x00) {
 			r[A] = mem[0x4078];
 			mem[0x4079] = r[A];
 			rp[IX] = 0x4084;
@@ -118,8 +118,7 @@
 			if (sFlag) {
 				r[L] = mem[0x407b]; r[H] = mem[0x407c];
 				r[A] = mem[rp[HL]];
-				zFlag = (r[A] == 0xff);
-				if (zFlag) r40f8();
+				if (r[A] == 0xff) r40f8();
 				r[L] = mem[0x407b]; r[H] = mem[0x407c];
 				r[L] = mem[0x407b]; r[H] = mem[0x407c];
 				r4198();
@@ -152,8 +151,8 @@
 		mem[0x40a8] = r[A];
 		rp[IX] = 0x4084;
 		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
-		r[A]++; zFlag = (r[A] === 0x00);
-		if (!zFlag) {
+		r[A]++;
+		if (r[A] !== 0x00) {
 			r4269();
 			r4332();
 			mem[0x40a1] = r[L]; mem[0x40a2] = r[H];
@@ -164,8 +163,8 @@
 		rp[IX] = 0x408e;
 		r4235();
 		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
-		r[A]++; zFlag = (r[A] === 0x00);
-		if (!zFlag) {
+		r[A]++;
+		if (r[A] !== 0x00) {
 			r[A] = r[C];
 			mem[0x433c] = r[A];
 			r[IXL] = mem[0x4091]; r[IXH] = mem[0x4092];
@@ -185,8 +184,8 @@
 		rp[IX] = 0x4098;
 		r4235();
 		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
-		r[A]++; zFlag = (r[A] === 0x00);
-		if (!zFlag) {
+		r[A]++;
+		if (r[A] !== 0x00) {
 			r[A] = r[C];
 			mem[0x433c] = r[A];
 			r[IXL] = mem[0x409b]; r[IXH] = mem[0x409c];
@@ -249,9 +248,7 @@
 		Outputs: ['H', 'L']
 		Overwrites: ['pvFlag', 'cFlag', 'zFlag', 'sFlag', 'H', 'L']
 		*/
-		while (true) {
-			zFlag = (r[A] == mem[rp[HL]]);
-			if (zFlag) return;
+		while (mem[rp[HL]] != r[A]) {
 			rp[HL] += rp[BC];
 		}
 	}
@@ -416,8 +413,8 @@
 		Overwrites: ['D', 'zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'pvFlag', 'E', 'C']
 		*/
 		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
-		r[A]++; zFlag = (r[A] === 0x00);
-		if (zFlag) return;
+		r[A]++;
+		if (r[A] === 0x00) return;
 		r[A]--;
 		r[A]--; zFlag = (r[A] === 0x00); sFlag = !!(r[A] & 0x80); pvFlag = ((r[A] & 0x7f) == 0x7f);
 		mem[(rp[IX] + 0x07) & 0xffff] = r[A];
@@ -434,8 +431,8 @@
 		rp[HL] = 0x0060;
 		tmp = rp[HL] + rp[DE]; rp[HL] = tmp; cFlag = (tmp >= 0x10000);
 		r[A] = mem[rp[HL]];
-		r[A]--; sFlag = !!(r[A] & 0x80);
-		if (sFlag) {
+		r[A]--;
+		if (r[A] & 0x80) {
 			mem[(rp[IX] + 0x07) & 0xffff] = 0xff;
 			return;
 		}
@@ -463,14 +460,12 @@
 		r[E] = r[A];
 		rp[IX] += rp[DE];
 		r[A] = mem[(rp[IX] + 0x01) & 0xffff];
-		zFlag = !(r[A] & 0x80);
 		r[C] = 0x10;
-		if (zFlag) {
+		if (!(r[A] & 0x80)) {
 			r[C] = r[D];
 		}
-		zFlag = !(r[A] & 0x40);
 		r[B] = 0x02;
-		if (zFlag) {
+		if (!(r[A] & 0x40)) {
 			r[B] = r[D];
 		}
 		r[A] &= 0x1f;
@@ -487,8 +482,7 @@
 		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
 		r[A] &= 0x0f;
 		r[L] = r[A];
-		zFlag = !(mem[(rp[IX] + 0x01) & 0xffff] & 0x20);
-		if (zFlag) return;
+		if (!(mem[(rp[IX] + 0x01) & 0xffff] & 0x20)) return;
 		r[D] |= 0x10;
 	}
 
@@ -500,12 +494,9 @@
 		Outputs: ['pvFlag', 'zFlag', 'cFlag', 'sFlag']
 		Overwrites: ['A', 'pvFlag', 'cFlag', 'zFlag', 'sFlag']
 		*/
-		r[A] = r[C];
-		zFlag = (r[A] === 0); cFlag = false; sFlag = !!(r[A] & 0x80);
-		if (!zFlag) return;
-		r[A] = r[H];
-		mem[0x40a7] = r[A];
-		return;
+		if (r[C] === 0) {
+			mem[0x40a7] = r[H];
+		}
 	}
 
 	function r4332() {
@@ -515,7 +506,7 @@
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag']
 		*/
 		r[A] = r[L];
-		tmp = (sFlag << 7) | (zFlag << 6) | (pvFlag << 2) | cFlag; rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--; mem[rp[SP]] = tmp;
+		rp[SP]--; mem[rp[SP]] = r[A]; rp[SP]--;
 		rp[SP]--; mem[rp[SP]] = r[D]; rp[SP]--; mem[rp[SP]] = r[E];
 		r[L] = mem[(rp[IX] + 0x05) & 0xffff];
 		r[H] = mem[(rp[IX] + 0x06) & 0xffff];
@@ -541,13 +532,11 @@
 		rp[HL] = rp[DE];
 		r[E] = mem[rp[SP]]; rp[SP]++; r[D] = mem[rp[SP]]; rp[SP]++;
 		rp[SP]++; r[A] = mem[rp[SP]]; rp[SP]++;
-		zFlag = !(r[D] & 0x10);
-		if (!zFlag) {
+		if (r[D] & 0x10) {
 			r[D] &= 0xef;
 			tmp = rp[HL] + rp[DE]; rp[HL] = tmp; cFlag = (tmp >= 0x10000);
 		} else {
-			cFlag = false;
-			tmp = rp[HL] - rp[DE] - cFlag; rp[HL] = tmp; cFlag = (tmp < 0);
+			tmp = rp[HL] - rp[DE]; rp[HL] = tmp; cFlag = (tmp < 0);
 		}
 	}
 
@@ -558,13 +547,13 @@
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'A', 'pvFlag']
 		*/
 		r[A] = mem[(rp[IX] + 0x07) & 0xffff];
-		r[A]++; zFlag = (r[A] === 0x00);
-		if (zFlag) return;
+		r[A]++;
+		if (r[A] === 0x00) return;
 		r[A] = mem[(rp[IX] - 0x02) & 0xffff];
-		zFlag = (r[A] === 0); cFlag = false;
-		if (zFlag) return;
-		zFlag = (r[A] == 0x02); cFlag = (r[A] < 0x02);
-		if (!zFlag) {
+		cFlag = false;
+		if (r[A] === 0) return;
+		cFlag = (r[A] < 0x02);
+		if (r[A] != 0x02) {
 			mem[(rp[IX] - 0x02) & 0xffff] = 0x02;
 		} else {
 			r[A] = 0x00; cFlag = false;
