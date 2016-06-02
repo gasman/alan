@@ -128,62 +128,60 @@
 				patternPtrs[2] = rp[HL];
 			}
 		}
-		rp[IX] = 0x4084;
-		r4235(rp[IX]);
+		chanPtr = 0x4084;
+		r4235(chanPtr);
 		r[A] = r[C];
 		sampleIndex = r[A];
-		r[IXL] = mem[0x4087]; r[IXH] = mem[0x4088];
-		getSampleData(rp[IX]);
+		getSampleData(mem[chanPtr + 3] | (mem[chanPtr + 4] << 8));
 		mem[0x40a8] = (r[C] | r[B]) >> 1;
-		rp[IX] = 0x4084;
-		r[A] = mem[rp[IX] + 0x07] + 1;
+		r[A] = mem[chanPtr + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
-			rp[HL] = getTone(rp[IX], rp[DE]);
+			rp[HL] = getTone(chanPtr, rp[DE]);
 			mem[0x40a1] = r[L]; mem[0x40a2] = r[H];
 		}
 		rp[HL] = 0x40a9;
 		mem[rp[HL]] = r[A];
-		r4271();
-		rp[IX] = 0x408e;
-		r4235(rp[IX]);
-		r[A] = mem[rp[IX] + 0x07] + 1;
+		r4271(chanPtr);
+
+
+		chanPtr = 0x408e;
+		r4235(chanPtr);
+		r[A] = mem[chanPtr + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
 			sampleIndex = r[A];
-			r[IXL] = mem[0x4091]; r[IXH] = mem[0x4092];
-			getSampleData(rp[IX]);
+			getSampleData(mem[chanPtr + 3] | (mem[chanPtr + 4] << 8));
 			mem[0x40a8] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
-			rp[IX] = 0x408e;
 			r[A] = r[L];
-			rp[HL] = getTone(rp[IX], rp[DE]);
+			rp[HL] = getTone(chanPtr, rp[DE]);
 			mem[0x40a3] = r[L]; mem[0x40a4] = r[H];
 		}
 		rp[HL] = 0x40aa;
 		mem[rp[HL]] = r[A];
-		r4271();
-		rp[IX] = 0x4098;
-		r4235(rp[IX]);
-		r[A] = mem[rp[IX] + 0x07] + 1;
+		r4271(chanPtr);
+
+		chanPtr = 0x4098;
+		r4235(chanPtr);
+		r[A] = mem[chanPtr + 0x07] + 1;
 		if (r[A] !== 0x00) {
 			r[A] = r[C];
 			sampleIndex = r[A];
-			r[IXL] = mem[0x409b]; r[IXH] = mem[0x409c];
-			getSampleData(rp[IX]);
+			getSampleData(mem[chanPtr + 3] | (mem[chanPtr + 4] << 8));
 			r[C] = (r[C] << 1);
 			r[B] = (r[B] << 1);
 			mem[0x40a8] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
-			rp[IX] = 0x4098;
 			r[A] = r[L];
-			rp[HL] = getTone(rp[IX], rp[DE]);
+			rp[HL] = getTone(chanPtr, rp[DE]);
 			mem[0x40a5] = r[L]; mem[0x40a6] = r[H];
 		}
 		rp[HL] = 0x40ab;
 		mem[rp[HL]] = r[A];
-		r4271();
+		r4271(chanPtr);
+
 		writeAY();
 	}
 
@@ -453,20 +451,20 @@
 		}
 	}
 
-	function r4271() {
+	function r4271(chanPtr) {
 		/*
 		Inputs: ['IXL', 'IXH', 'H', 'L']
 		Outputs: ['A', 'cFlag']
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'A', 'pvFlag']
 		*/
-		if (mem[rp[IX] + 0x07] == 0xff) return;
-		var v = mem[rp[IX] - 0x02];
+		if (mem[chanPtr + 0x07] == 0xff) return;
+		var v = mem[chanPtr - 0x02];
 		if (v === 0) {
 			return;
 		} else if (v == 0x02) {
 			mem[0x40ae] = 0x00;
 		} else {
-			mem[rp[IX] - 0x02] = 0x02;
+			mem[chanPtr - 0x02] = 0x02;
 		}
 		mem[rp[HL]] |= 0x10;
 	}
