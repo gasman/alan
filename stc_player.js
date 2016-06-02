@@ -30,10 +30,7 @@
 		IYH = 11; IYL = 10;
 	}
 
-	var sFlag = false;
-
 	mem = new Uint8Array(0x10000);
-	var tmp;
 
 	var ayRegisters = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false];
 	var selectedAYRegister = 0;
@@ -108,23 +105,20 @@
 		if (tempoCounter === 0x00) {
 			tempoCounter = tempo;
 			chanPtr = 0x4084;
-			r4139(chanPtr);
-			if (sFlag) {
+			if (advanceMysteryCounter(chanPtr)) {
 				if (mem[patternPtrs[0]] == 0xff) r40f8();
 				rp[HL] = patternPtrs[0];
 				fetchPatternData(chanPtr);
 				patternPtrs[0] = rp[HL];
 			}
 			chanPtr = 0x408e;
-			r4139(chanPtr);
-			if (sFlag) {
+			if (advanceMysteryCounter(chanPtr)) {
 				rp[HL] = patternPtrs[1];
 				fetchPatternData(chanPtr);
 				patternPtrs[1] = rp[HL];
 			}
 			chanPtr = 0x4098;
-			r4139(chanPtr);
-			if (sFlag) {
+			if (advanceMysteryCounter(chanPtr)) {
 				rp[HL] = patternPtrs[2];
 				fetchPatternData(chanPtr);
 				patternPtrs[2] = rp[HL];
@@ -233,15 +227,19 @@
 		rp[BC] = 0xbffd;  // WHY?!?
 	}
 
-	function r4139(ix) {
+	function advanceMysteryCounter(chanPtr) {
 		/*
 		Inputs: ['IXL', 'IXH']
 		Outputs: ['sFlag']
 		Overwrites: ['sFlag', 'A', 'zFlag', 'pvFlag']
 		*/
-		mem[ix + 0x02]--; sFlag = !!(mem[ix + 0x02] & 0x80);
-		if (sFlag) {
-			mem[ix + 0x02] = mem[ix - 0x01];
+		mem[chanPtr + 0x02]--;
+		if (mem[chanPtr + 0x02] & 0x80) {
+			/* mystery counter looped */
+			mem[chanPtr + 0x02] = mem[chanPtr - 0x01];
+			return true;
+		} else {
+			return false;
 		}
 	}
 
