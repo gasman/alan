@@ -153,7 +153,7 @@
 		r[A] = mem[rp[IX] + 0x07];
 		r[A]++;
 		if (r[A] !== 0x00) {
-			r4269();
+			setNoiseReg(r[C], r[H]);
 			r4332();
 			mem[0x40a1] = r[L]; mem[0x40a2] = r[H];
 		}
@@ -173,7 +173,7 @@
 			r[A] |= r[C];
 			r[A] |= r[B];
 			mem[0x40a8] = r[A];
-			r4269();
+			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x408e;
 			r4332();
 			mem[0x40a3] = r[L]; mem[0x40a4] = r[H];
@@ -196,7 +196,7 @@
 			r[A] |= r[B];
 			r[A] |= r[C];
 			mem[0x40a8] = r[A];
-			r4269();
+			setNoiseReg(r[C], r[H]);
 			rp[IX] = 0x4098;
 			r4332();
 			mem[0x40a5] = r[L]; mem[0x40a6] = r[H];
@@ -484,7 +484,7 @@
 		r[D] |= 0x10;
 	}
 
-	function r4269() {
+	function setNoiseReg(mask, val) {
 		/*
 		Apply noise values to AY registers. If C (noise mask) is zero, write H (noise value) to AY reg 6.
 
@@ -492,8 +492,8 @@
 		Outputs: ['pvFlag', 'zFlag', 'cFlag', 'sFlag']
 		Overwrites: ['A', 'pvFlag', 'cFlag', 'zFlag', 'sFlag']
 		*/
-		if (r[C] === 0) {
-			mem[0x40a7] = r[H];
+		if (mask === 0) {
+			mem[0x40a7] = val;
 		}
 	}
 
