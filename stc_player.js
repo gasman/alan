@@ -53,9 +53,11 @@
 	var patternPtrs = new Uint16Array(3);
 	var ayRegBuffer = new Uint16Array(0x0e);
 
-	var chan1Data = new Uint8Array(0x0a);
-	var chan2Data = new Uint8Array(0x0a);
-	var chan3Data = new Uint8Array(0x0a);
+	var chanData = [
+		new Uint8Array(0x0a),
+		new Uint8Array(0x0a),
+		new Uint8Array(0x0a)
+	];
 
 	function r4000() {
 		/*
@@ -76,9 +78,9 @@
 
 		patternPtrs[0] = 0x4081;
 		for (var i = 0; i < 0x0a; i++) {
-			chan1Data[i] = 0;
-			chan2Data[i] = 0;
-			chan3Data[i] = 0;
+			chanData[0][i] = 0;
+			chanData[1][i] = 0;
+			chanData[2][i] = 0;
 		}
 		nextPositionNum = 0;
 
@@ -101,72 +103,72 @@
 		Outputs: []
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'H', 'IXL', 'L', 'A', 'pvFlag', 'B', 'C', 'IXH']
 		*/
-		var chanData;
+		var chan;
 		var sampleIndex;
 
 		tempoCounter--;
 		if (tempoCounter === 0x00) {
 			tempoCounter = tempo;
-			chanData = chan1Data;
-			if (advanceMysteryCounter(chanData)) {
+			chan = 0;
+			if (advanceMysteryCounter(chan)) {
 				if (mem[patternPtrs[0]] == 0xff) newPosition();
-				patternPtrs[0] = fetchPatternData(chanData, patternPtrs[0]);
+				patternPtrs[0] = fetchPatternData(chan, patternPtrs[0]);
 			}
-			chanData = chan2Data;
-			if (advanceMysteryCounter(chanData)) {
-				patternPtrs[1] = fetchPatternData(chanData, patternPtrs[1]);
+			chan = 1;
+			if (advanceMysteryCounter(chan)) {
+				patternPtrs[1] = fetchPatternData(chan, patternPtrs[1]);
 			}
-			chanData = chan3Data;
-			if (advanceMysteryCounter(chanData)) {
-				patternPtrs[2] = fetchPatternData(chanData, patternPtrs[2]);
+			chan = 2;
+			if (advanceMysteryCounter(chan)) {
+				patternPtrs[2] = fetchPatternData(chan, patternPtrs[2]);
 			}
 		}
-		chanData = chan1Data;
-		r4235(chanData);
+		chan = 0;
+		r4235(chan);
 		sampleIndex = r[C];
-		getSampleData(chanData[0x05] | (chanData[0x06] << 8), sampleIndex);
+		getSampleData(chanData[chan][0x05] | (chanData[chan][0x06] << 8), sampleIndex);
 		ayRegBuffer[0x07] = (r[C] | r[B]) >> 1;
-		r[A] = chanData[0x09] + 1;
+		r[A] = chanData[chan][0x09] + 1;
 		if (r[A] !== 0x00) {
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
-			rp[HL] = getTone(chanData, rp[DE], sampleIndex);
+			rp[HL] = getTone(chan, rp[DE], sampleIndex);
 			ayRegBuffer[0x00] = r[L]; ayRegBuffer[0x01] = r[H];
 		}
 		ayRegBuffer[0x08] = r[A];
-		r4271(chanData, 0x08);
+		r4271(chan, 0x08);
 
-		chanData = chan2Data;
-		r4235(chanData);
-		r[A] = chanData[0x09] + 1;
+		chan = 1;
+		r4235(chan);
+		r[A] = chanData[chan][0x09] + 1;
 		if (r[A] !== 0x00) {
 			sampleIndex = r[C];
-			getSampleData(chanData[0x05] | (chanData[0x06] << 8), sampleIndex);
+			getSampleData(chanData[chan][0x05] | (chanData[chan][0x06] << 8), sampleIndex);
 			ayRegBuffer[0x07] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
-			rp[HL] = getTone(chanData, rp[DE], sampleIndex);
+			rp[HL] = getTone(chan, rp[DE], sampleIndex);
 			ayRegBuffer[0x02] = r[L]; ayRegBuffer[0x03] = r[H];
 		}
 		ayRegBuffer[0x09] = r[A];
-		r4271(chanData, 0x09);
+		r4271(chan, 0x09);
 
-		chanData = chan3Data;
-		r4235(chanData);
-		r[A] = chanData[0x09] + 1;
+		chan = 2;
+		r4235(chan);
+		r[A] = chanData[chan][0x09] + 1;
 		if (r[A] !== 0x00) {
 			sampleIndex = r[C];
-			getSampleData(chanData[0x05] | (chanData[0x06] << 8), sampleIndex);
+			getSampleData(chanData[chan][0x05] | (chanData[chan][0x06] << 8), sampleIndex);
 			r[C] = (r[C] << 1);
 			r[B] = (r[B] << 1);
 			ayRegBuffer[0x07] |= r[C] | r[B];
 			setNoiseReg(r[C], r[H]);
 			r[A] = r[L];
-			rp[HL] = getTone(chanData, rp[DE], sampleIndex);
+			rp[HL] = getTone(chan, rp[DE], sampleIndex);
 			ayRegBuffer[0x04] = r[L]; ayRegBuffer[0x05] = r[H];
 		}
 		ayRegBuffer[0x0a] = r[A];
-		r4271(chanData, 0x0a);
+		r4271(chan, 0x0a);
 
 		writeAY();
 	}
@@ -221,16 +223,16 @@
 		rp[BC] = 0xbffd;  // WHY?!?
 	}
 
-	function advanceMysteryCounter(chanData) {
+	function advanceMysteryCounter(chan) {
 		/*
 		Inputs: ['IXL', 'IXH']
 		Outputs: ['sFlag']
 		Overwrites: ['sFlag', 'A', 'zFlag', 'pvFlag']
 		*/
-		chanData[0x04]--;
-		if (chanData[0x04] & 0x80) {
+		chanData[chan][0x04]--;
+		if (chanData[chan][0x04] & 0x80) {
 			/* mystery counter looped */
-			chanData[0x04] = chanData[0x01];
+			chanData[chan][0x04] = chanData[chan][0x01];
 			return true;
 		} else {
 			return false;
@@ -259,7 +261,7 @@
 		patternPtrs[2] = readPointer();
 	}
 
-	function fetchPatternData(chanData, patternPtr) {
+	function fetchPatternData(chan, patternPtr) {
 		/*
 		Inputs: ['IXL', 'IXH', 'H', 'L']
 		Outputs: ['H', 'C', 'cFlag', 'L']
@@ -269,31 +271,31 @@
 		while (true) {
 			var command = mem[patternPtr];
 			if (command < 0x60) {
-				chanData[0x03] = command;
-				chanData[0x02] = 0x00;
-				chanData[0x09] = 0x20;
+				chanData[chan][0x03] = command;
+				chanData[chan][0x02] = 0x00;
+				chanData[chan][0x09] = 0x20;
 				patternPtr++;
 				return patternPtr;
 			} else if (command < 0x70) {
 				command -= 0x60;
 				rp[BC] = 0x0063; /* seemingly needed... */
 				rp[HL] = scan(w4076, 0x0063, command) + 1;
-				chanData[0x05] = r[L];
-				chanData[0x06] = r[H];
+				chanData[chan][0x05] = r[L];
+				chanData[chan][0x06] = r[H];
 				patternPtr++;
 			} else if (command < 0x80) {
 				command -= 0x70;
-				r41f6(chanData, command);
+				r41f6(chan, command);
 				patternPtr++;
 			} else if (command == 0x80) {
 				patternPtr++;
-				chanData[0x09] = 0xff;
+				chanData[chan][0x09] = 0xff;
 				return patternPtr;
 			} else if (command == 0x81) {
 				patternPtr++;
 				return patternPtr;
 			} else if (command == 0x82) {
-				r41f6(chanData, 0x00);
+				r41f6(chan, 0x00);
 				patternPtr++;
 			} else if (command < 0x8f) {
 				command -= 0x80;
@@ -301,27 +303,27 @@
 				patternPtr++;
 				ayRegBuffer[0x0b] = mem[patternPtr];
 				patternPtr++;
-				chanData[0x00] = 0x01;
+				chanData[chan][0x00] = 0x01;
 				rp[HL] = scan(w4072, 0x0021, 0x00) + 1;
-				chanData[0x07] = r[L];
-				chanData[0x08] = r[H];
+				chanData[chan][0x07] = r[L];
+				chanData[chan][0x08] = r[H];
 			} else {
 				command = (command - 0xa1) & 0xff;
-				chanData[0x04] = command;
-				chanData[0x01] = command;
+				chanData[chan][0x04] = command;
+				chanData[chan][0x01] = command;
 				patternPtr++;
 			}
 		}
 	}
 
-	function r41f6(chanData, id) {
+	function r41f6(chan, id) {
 		rp[HL] = scan(w4072, 0x0021, id) + 1;
-		chanData[0x07] = r[L];
-		chanData[0x08] = r[H];
-		chanData[0x00] = 0x00;
+		chanData[chan][0x07] = r[L];
+		chanData[chan][0x08] = r[H];
+		chanData[chan][0x00] = 0x00;
 	}
 
-	function r4235(chanData) {
+	function r4235(chan) {
 		/*
 		Inputs: ['IXL', 'cFlag', 'IXH']
 		Outputs: ['H', 'C', 'cFlag', 'L']
@@ -329,25 +331,25 @@
 		*/
 		var a;
 
-		a = (chanData[0x09] + 1) & 0xff;
+		a = (chanData[chan][0x09] + 1) & 0xff;
 		if (a === 0x00) return;
 		a = (a - 2) & 0xff;
 		var aWasZero = (a === 0x00);
-		chanData[0x09] = a;
+		chanData[chan][0x09] = a;
 
-		a = chanData[0x02];
+		a = chanData[chan][0x02];
 		r[C] = a;
-		chanData[0x02] = (a + 1) & 0x1f;
+		chanData[chan][0x02] = (a + 1) & 0x1f;
 		if (!aWasZero) return;
 
-		var addr = (chanData[0x05] | (chanData[0x06] << 8)) + 0x0060;
+		var addr = (chanData[chan][0x05] | (chanData[chan][0x06] << 8)) + 0x0060;
 		a = (mem[addr] - 1) & 0xff;
 		if (a & 0x80) {
-			chanData[0x09] = 0xff;
+			chanData[chan][0x09] = 0xff;
 		} else {
 			r[C] = a;
-			chanData[0x02] = (a + 1) & 0x1f;
-			chanData[0x09] = mem[addr + 1] + 1;
+			chanData[chan][0x02] = (a + 1) & 0x1f;
+			chanData[chan][0x09] = mem[addr + 1] + 1;
 		}
 	}
 
@@ -403,14 +405,14 @@
 		0x0017, 0x0016, 0x0015, 0x0013, 0x0012, 0x0011, 0x0010, 0x000f
 	]);
 
-	function getTone(chanData, samplePitch, sampleIndex) {
+	function getTone(chan, samplePitch, sampleIndex) {
 		/*
 		Inputs: ['D', 'cFlag', 'zFlag', 'sFlag', 'IXL', 'L', 'E', 'pvFlag', 'IXH']
 		Outputs: ['A', 'H', 'cFlag', 'L']
 		Overwrites: ['D', 'cFlag', 'zFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag']
 		*/
-		var ornPtr = (chanData[0x07] | (chanData[0x08] << 8)) + sampleIndex;
-		var note = (chanData[0x03] + mem[ornPtr] + height) & 0x7f;
+		var ornPtr = (chanData[chan][0x07] | (chanData[chan][0x08] << 8)) + sampleIndex;
+		var note = (chanData[chan][0x03] + mem[ornPtr] + height) & 0x7f;
 
 		var tone = toneTable[note];
 
@@ -421,20 +423,20 @@
 		}
 	}
 
-	function r4271(chanData, volReg) {
+	function r4271(chan, volReg) {
 		/*
 		Inputs: ['IXL', 'IXH', 'H', 'L']
 		Outputs: ['A', 'cFlag']
 		Overwrites: ['zFlag', 'cFlag', 'sFlag', 'A', 'pvFlag']
 		*/
-		if (chanData[0x09] == 0xff) return;
-		var v = chanData[0x00];
+		if (chanData[chan][0x09] == 0xff) return;
+		var v = chanData[chan][0x00];
 		if (v === 0) {
 			return;
 		} else if (v == 0x02) {
 			ayRegBuffer[0x0d] = 0x00;
 		} else {
-			chanData[0x00] = 0x02;
+			chanData[chan][0x00] = 0x02;
 		}
 		ayRegBuffer[volReg] |= 0x10;
 	}
