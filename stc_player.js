@@ -85,13 +85,13 @@
 		nextPositionNum = 0;
 
 		rp[HL] = scan(w4072, 0x0021, 0x00) + 1;
-		mem[0x408b] = 0xff;
-		mem[0x4095] = 0xff;
-		mem[0x409f] = 0xff;
+		chanData[0][0x09] = 0xff;
+		chanData[1][0x09] = 0xff;
+		chanData[2][0x09] = 0xff;
 		tempoCounter = 0x01;
-		mem[0x4089] = r[L]; mem[0x408a] = r[H];
-		mem[0x4093] = r[L]; mem[0x4094] = r[H];
-		mem[0x409d] = r[L]; mem[0x409e] = r[H];
+		chanData[0][0x07] = r[L]; chanData[0][0x08] = r[H];
+		chanData[1][0x07] = r[L]; chanData[1][0x08] = r[H];
+		chanData[2][0x07] = r[L]; chanData[2][0x08] = r[H];
 		writeAY();
 		/* EI */
 		return;
