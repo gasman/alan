@@ -30,7 +30,7 @@
 		IYH = 11; IYL = 10;
 	}
 
-	mem = new Uint8Array(0x10000);
+	var mem;
 
 	var ayRegisters = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false];
 	var selectedAYRegister = 0;
@@ -68,7 +68,7 @@
 		Outputs: []
 		Overwrites: ['D', 'zFlag', 'cFlag', 'sFlag', 'H', 'L', 'A', 'E', 'pvFlag', 'B', 'C']
 		*/
-		rp[HL] = dataAddr = 0x443c;
+		rp[HL] = dataAddr = 0x0001;
 		/* DI */
 		tempo = mem[dataAddr];
 		rp[HL]++;
@@ -79,8 +79,7 @@
 		w4074 = readPointer();
 		w4076 = dataAddr + 0x001b;
 
-		mem[0x4081] = 0xff;  // dummy pattern data to immediately trigger 'fetch new pattern'
-		patternPtrs[0] = 0x4081;
+		patternPtrs[0] = 0x0000;  // point to dummy 'fetch new pattern' pattern data
 		var nullOrnamentPtr = scan(ornamentsTable, 0x0021, 0x00) + 1;
 		for (i = 0; i < 3; i++) {
 			chanNotes[i] = 0;
@@ -446,9 +445,11 @@
 	}
 
 	function gotData(stc) {
-		/* load STC data at address 0x443c */
+		mem = new Uint8Array(stc.length + 1);
+		mem[0x0000] = 0xff;  // dummy pattern data to immediately trigger 'fetch new pattern'
+		/* load STC data at address 0x0001 */
 		for (i = 0; i < stc.length; i++) {
-			mem[0x443c + i] = stc[i];
+			mem[0x0001 + i] = stc[i];
 		}
 
 		stcInit();
