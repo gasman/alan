@@ -59,7 +59,7 @@
 		new Uint8Array(0x0a)
 	];
 
-	function r4000() {
+	function stcInit() {
 		/*
 		Inputs: []
 		Outputs: []
@@ -97,7 +97,7 @@
 		return;
 	}
 
-	function r4006() {
+	function stcPlay() {
 		/*
 		Inputs: ['cFlag']
 		Outputs: []
@@ -452,10 +452,10 @@
 			mem[0x443c + i] = stc[i];
 		}
 
-		r4000();
+		stcInit();
 		for (var frame = 0; frame < 10000; frame++) {
 			ayRegisters[14] = false;
-			r4006();
+			stcPlay();
 			console.log(ayRegisters.slice());
 		}
 	}
