@@ -46,7 +46,7 @@
 	}
 
 	var dataAddr;
-	var positionsTable, ornamentsTable, w4074, w4076;
+	var positionsTable, ornamentsTable, patternsTable, samplesTable;
 	var songLength, nextPositionNum, height;
 	var tempo, tempoCounter;
 
@@ -76,8 +76,8 @@
 		songLength = mem[rp[DE]] + 1;
 		positionsTable = rp[DE] + 1;
 		ornamentsTable = readPointer();
-		w4074 = readPointer();
-		w4076 = dataAddr + 0x001b;
+		patternsTable = readPointer();
+		samplesTable = dataAddr + 0x001b;
 
 		patternPtrs[0] = 0x0000;  // point to dummy 'fetch new pattern' pattern data
 		var nullOrnamentPtr = scan(ornamentsTable, 0x0021, 0x00) + 1;
@@ -131,7 +131,7 @@
 		if (chanSampleCounters[chan] == 0xff) {
 			ayRegBuffer[0x08] = 0x00;
 		} else {
-			setNoiseReg(r[C], r[H]);
+			if (!r[C]) ayRegBuffer[0x06] = r[H]; // set noise reg if noise mask is off
 			r[A] = r[L];
 			rp[HL] = getTone(chan, rp[DE], sampleIndex);
 			ayRegBuffer[0x00] = r[L]; ayRegBuffer[0x01] = r[H];
@@ -148,7 +148,7 @@
 			sampleIndex = r[C];
 			getSampleData(chanSamplePtrs[chan], sampleIndex);
 			ayRegBuffer[0x07] |= r[C] | r[B];
-			setNoiseReg(r[C], r[H]);
+			if (!r[C]) ayRegBuffer[0x06] = r[H]; // set noise reg if noise mask is off
 			r[A] = r[L];
 			rp[HL] = getTone(chan, rp[DE], sampleIndex);
 			ayRegBuffer[0x02] = r[L]; ayRegBuffer[0x03] = r[H];
@@ -167,7 +167,7 @@
 			r[C] = (r[C] << 1);
 			r[B] = (r[B] << 1);
 			ayRegBuffer[0x07] |= r[C] | r[B];
-			setNoiseReg(r[C], r[H]);
+			if (!r[C]) ayRegBuffer[0x06] = r[H]; // set noise reg if noise mask is off
 			r[A] = r[L];
 			rp[HL] = getTone(chan, rp[DE], sampleIndex);
 			ayRegBuffer[0x04] = r[L]; ayRegBuffer[0x05] = r[H];
@@ -260,7 +260,7 @@
 		var patternId = mem[positionPtr];
 		r[C] = patternId; // apparently needed...
 		height = mem[positionPtr + 1];
-		rp[HL] = scan(w4074, 0x0007, patternId) + 1;
+		rp[HL] = scan(patternsTable, 0x0007, patternId) + 1;
 		patternPtrs[0] = readPointer();
 		patternPtrs[1] = readPointer();
 		patternPtrs[2] = readPointer();
@@ -284,13 +284,13 @@
 				return patternPtr;
 			} else if (command < 0x70) {
 				/* sample */
-				command -= 0x60;
 				rp[BC] = 0x0063; /* seemingly needed... */
-				chanSamplePtrs[chan] = scan(w4076, 0x0063, command) + 1;
+				chanSamplePtrs[chan] = scan(samplesTable, 0x0063, command - 0x60) + 1;
 				patternPtr++;
 			} else if (command < 0x80) {
 				/* ornament */
-				selectOrnament(chan, command - 0x70);
+				chanOrnamentPtrs[chan] = scan(ornamentsTable, 0x0021, command - 0x70) + 1;
+				chanEnvelopeStates[chan] = 0x00;
 				patternPtr++;
 			} else if (command == 0x80) {
 				/* rest */
@@ -303,7 +303,8 @@
 				return patternPtr;
 			} else if (command == 0x82) {
 				/* ornament off */
-				selectOrnament(chan, 0x00);
+				chanOrnamentPtrs[chan] = scan(ornamentsTable, 0x0021, 0x00) + 1;
+				chanEnvelopeStates[chan] = 0x00;
 				patternPtr++;
 			} else if (command < 0x8f) {
 				/* envelope */
@@ -320,12 +321,6 @@
 				patternPtr++;
 			}
 		}
-	}
-
-	function selectOrnament(chan, id) {
-		rp[HL] = scan(ornamentsTable, 0x0021, id) + 1;
-		chanOrnamentPtrs[chan] = rp[HL];
-		chanEnvelopeStates[chan] = 0x00;
 	}
 
 	function advanceSample(chan) {
@@ -378,19 +373,6 @@
 		r[L] = a & 0x0f;
 		if (mem[samplePtr + 0x01] & 0x20) {
 			r[D] |= 0x10;
-		}
-	}
-
-	function setNoiseReg(mask, val) {
-		/*
-		Apply noise values to AY registers. If C (noise mask) is zero, write H (noise value) to AY reg 6.
-
-		Inputs: ['H', 'C']
-		Outputs: ['pvFlag', 'zFlag', 'cFlag', 'sFlag']
-		Overwrites: ['A', 'pvFlag', 'cFlag', 'zFlag', 'sFlag']
-		*/
-		if (mask === 0) {
-			ayRegBuffer[0x06] = val;
 		}
 	}
 
