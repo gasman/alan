@@ -206,6 +206,7 @@ REGS_FROM_PAIR = {
     'HL': ('H', 'L'),
     'IX': ('IXH', 'IXL'),
     'IY': ('IYH', 'IYL'),
+    'SP': ('SPH', 'SPL'),
 }
 
 FLAG_FROM_CONDITION = {
@@ -221,9 +222,31 @@ FLAG_FROM_CONDITION = {
 
 
 TRACKED_VALUES = [
-    'A', 'B', 'C', 'D', 'E', 'H', 'L', 'IXH', 'IXL', 'IYH', 'IYL',
+    'A', 'B', 'C', 'D', 'E', 'H', 'L', 'IXH', 'IXL', 'IYH', 'IYL', 'SPH', 'SPL', 'A_',
     'cFlag', 'zFlag', 'pvFlag', 'sFlag',
 ]
+
+
+class ADC_A_N(InstructionWithByteParam):
+    def asm_repr(self):
+        return "ADC A,0x%02x" % self.param
+
+    @property
+    def uses(self):
+        return {'A', 'cFlag'}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+
+class ADC_A_R(InstructionWithReg, InstructionWithNoParam):
+    def asm_repr(self):
+        return "ADC A,%s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg, 'cFlag'}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class ADD_A_iHLi(InstructionWithNoParam):
@@ -238,6 +261,21 @@ class ADD_A_iHLi(InstructionWithNoParam):
             return "r[A] += mem[rp[HL]];"
         else:
             super(ADD_A_iHLi, self).to_javascript()
+
+
+class ADD_A_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
+    def asm_repr(self):
+        if self.offset < 0:
+            return "ADD A,(%s-0x%02x)" % (self.reg_pair, -self.offset)
+        else:
+            return "ADD A,(%s+0x%02x)" % (self.reg_pair, self.offset)
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {'A', h, l}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class ADD_A_N(InstructionWithByteParam):
@@ -347,6 +385,14 @@ class AND_R(InstructionWithReg, InstructionWithNoParam):
             return "cFlag = false;"
         else:
             super(AND_R, self).to_javascript()
+
+
+class BIT_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "BIT %d,(HL)" % self.bit
+
+    uses = {'H', 'L'}
+    overwrites = {'zFlag', 'pvFlag', 'sFlag'}
 
 
 class BIT_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWithOffsetParam):
@@ -481,6 +527,17 @@ class CP_N(InstructionWithByteParam):
             super(CP_N, self).to_javascript()
 
 
+class CP_R(InstructionWithReg, InstructionWithNoParam):
+    def asm_repr(self):
+        return "CP %s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg}
+
+    overwrites = {'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+
 class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
     def asm_repr(self):
         if self.offset < 0:
@@ -503,6 +560,30 @@ class DEC_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
                 return "tmp = (rp[%s] + 0x%02x) & 0xffff; mem[tmp]--; sFlag = !!(mem[tmp] & 0x80);" % (self.reg_pair, self.offset)
         else:
             super(DEC_iIXIYpNi, self).to_javascript()
+
+
+class DEC_iHLi(InstructionWithNoParam):
+    def asm_repr(self):
+        return "DEC (HL)"
+
+    uses = {'H', 'L'}
+    overwrites = {'zFlag', 'pvFlag', 'sFlag'}
+
+
+class DEC_IXIYH(InstructionWithRegPair, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return "DEC %s" % h
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h}
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class DEC_R(InstructionWithReg, InstructionWithNoParam):
@@ -562,6 +643,22 @@ class DI(InstructionWithNoParam):
         return "/* DI */"
 
 
+class DJNZ_NN(InstructionWithOffsetParam):
+    @property
+    def jump_target(self):
+        return (self.addr + 2 + self.offset) & 0xffff
+
+    @property
+    def static_destination_addresses(self):
+        return [self.jump_target]
+
+    def asm_repr(self):
+        return "DJNZ 0x%04x" % self.jump_target
+
+    uses = {'B'}
+    overwrites = {'B'}
+
+
 class EI(InstructionWithNoParam):
     def asm_repr(self):
         return "EI"
@@ -571,6 +668,14 @@ class EI(InstructionWithNoParam):
 
     def to_javascript(self):
         return "/* EI */"
+
+
+class EX_AF_AF(InstructionWithNoParam):
+    def asm_repr(self):
+        return "EX AF,AF'"
+
+    uses = {'A', 'A_', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+    overwrites = {'A', 'A_', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class EX_DE_HL(InstructionWithNoParam):
@@ -587,6 +692,22 @@ class EX_DE_HL(InstructionWithNoParam):
             return "rp[HL] = rp[DE];"
         else:
             super(EX_DE_HL, self).to_javascript()
+
+
+class EX_iSPi_HL(InstructionWithNoParam):
+    def asm_repr(self):
+        return "EX (SP),HL"
+
+    uses = {'H', 'L'}
+    overwrites = {'H', 'L'}
+
+
+class INC_iHLi(InstructionWithNoParam):
+    def asm_repr(self):
+        return "INC (HL)"
+
+    uses = {'H', 'L'}
+    overwrites = {'zFlag', 'pvFlag', 'sFlag'}
 
 
 class INC_R(InstructionWithReg, InstructionWithNoParam):
@@ -826,6 +947,21 @@ class LD_iIXIYpNi_R(InstructionWithRegAndRegPair, ExtendedInstructionWithOffsetP
             return "mem[(rp[%s] + 0x%02x) & 0xffff] = r[%s];" % (self.reg_pair, self.offset, self.reg)
 
 
+class LD_iRRi_A(InstructionWithRegPair, InstructionWithNoParam):
+    def asm_repr(self):
+        return "LD (%s),A" % self.reg_pair
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l, 'A'}
+
+    overwrites = set()
+
+    def to_javascript(self):
+        return "mem[rp[%s]] = r[A];" % self.reg_pair
+
+
 class LD_HL_iNNi(InstructionWithWordParam):
     def asm_repr(self):
         return "LD HL,(0x%04x)" % self.param
@@ -937,6 +1073,26 @@ class LD_IXIY_NN(InstructionWithRegPair, ExtendedInstructionWithWordParam):
             super(LD_IXIY_NN, self).to_javascript()
 
 
+class LD_IXIYH_N(InstructionWithRegPair, ExtendedInstructionWithByteParam):
+    def asm_repr(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return "LD %s,0x%02x" % (h, self.param)
+
+    uses = set()
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h}
+
+    def to_javascript(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        if self.used_results == {h}:
+            return "r[%s] = 0x%02x;" % (h, self.param)
+        else:
+            super(LD_IXIYH_N, self).to_javascript()
+
+
 class LD_R_iIXIYpNi(InstructionWithRegAndRegPair, ExtendedInstructionWithOffsetParam):
     def asm_repr(self):
         if self.offset < 0:
@@ -1034,6 +1190,26 @@ class LD_RR_NN(InstructionWithRegPair, InstructionWithWordParam):
             super(LD_RR_NN, self).to_javascript()
 
 
+class LD_SP_HL(InstructionWithNoParam):
+    def asm_repr(self):
+        return "LD SP,HL"
+
+    uses = {'H', 'L'}
+    overwrites = set()
+
+
+class LD_SP_IXIY(InstructionWithRegPair, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "LD SP,%s" % self.reg_pair
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = set()
+
+
 class LDIR(ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "LDIR"
@@ -1060,6 +1236,21 @@ class OR_iHLi(InstructionWithNoParam):
             return "zFlag = (r[A] | mem[rp[HL]]) === 0;"
         else:
             super(OR_iHLi, self).to_javascript()
+
+
+class OR_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
+    def asm_repr(self):
+        if self.offset < 0:
+            return "OR (%s-0x%02x)" % (self.reg_pair, -self.offset)
+        else:
+            return "OR (%s+0x%02x)" % (self.reg_pair, self.offset)
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {'A', h, l}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class OR_R(InstructionWithReg, InstructionWithNoParam):
@@ -1115,6 +1306,39 @@ class OUTD(ExtendedInstructionWithNoParam):
             super(OUTD, self).to_javascript()
 
 
+class OUTI(ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "OUTI"
+
+    uses = {'B', 'C', 'H', 'L'}
+    overwrites = {'B', 'H', 'L', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'H', 'L'}:
+            return "out(rp[BC], mem[rp[HL]]); rp[HL]++;"
+        else:
+            super(OUTI, self).to_javascript()
+
+
+class POP_IXIY(InstructionWithRegPair, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "POP %s" % self.reg_pair
+
+    uses = set()
+
+    @property
+    def overwrites(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    def to_javascript(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        if self.used_results == {h, l}:
+            return "r[%s] = mem[rp[SP]]; rp[SP]++; r[%s] = mem[rp[SP]]; rp[SP]++;" % (l, h)
+        else:
+            super(POP_IXIY, self).to_javascript()
+
+
 class POP_RR(InstructionWithRegPair, InstructionWithNoParam):
     def asm_repr(self):
         return "POP %s" % self.reg_pair
@@ -1165,6 +1389,32 @@ class PUSH_RR(InstructionWithRegPair, InstructionWithNoParam):
         else:
             h, l = REGS_FROM_PAIR[self.reg_pair]
             return "rp[SP]--; mem[rp[SP]] = r[%s]; rp[SP]--; mem[rp[SP]] = r[%s];" % (h, l)
+
+
+class RES_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "RES %d,(HL)" % self.bit
+
+    uses = {'H', 'L'}
+    overwrites = set()
+
+    def to_javascript(self):
+        return "mem[rp[HL]] &= 0x%02x;" % (0xff ^ (1 << self.bit))
+
+
+class RES_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWithOffsetParam):
+    def asm_repr(self):
+        if self.offset < 0:
+            return "RES %d,(%s-0x%02x)" % (self.bit, self.reg_pair, -self.offset)
+        else:
+            return "RES %d,(%s+0x%02x)" % (self.bit, self.reg_pair, self.offset)
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = set()
 
 
 class RES_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
@@ -1224,6 +1474,27 @@ class RET_C(InstructionWithCondition, InstructionWithNoParam):
             return "if (!%s) return;" % flag
 
 
+class RL_R(InstructionWithReg, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "RL %s" % self.reg
+
+    @property
+    def uses(self):
+        return {self.reg, 'cFlag'}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+
+class RLA(InstructionWithNoParam):
+    def asm_repr(self):
+        return "RLA"
+
+    uses = {'A', 'cFlag'}
+    overwrites = {'A', 'cFlag'}
+
+
 class RLC_R(InstructionWithReg, ExtendedInstructionWithNoParam):
     def asm_repr(self):
         return "RLC %s" % self.reg
@@ -1243,6 +1514,35 @@ class RLC_R(InstructionWithReg, ExtendedInstructionWithNoParam):
             super(RLC_R, self).to_javascript()
 
 
+class RLCA(InstructionWithNoParam):
+    def asm_repr(self):
+        return "RLCA"
+
+    uses = {'A'}
+    overwrites = {'A', 'cFlag'}
+
+
+class RR_R(InstructionWithReg, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "RR %s" % self.reg
+
+    @property
+    def uses(self):
+        return {self.reg, 'cFlag'}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+
+class RRA(InstructionWithNoParam):
+    def asm_repr(self):
+        return "RRA"
+
+    uses = {'A', 'cFlag'}
+    overwrites = {'A', 'cFlag'}
+
+
 class RRCA(InstructionWithNoParam):
     def asm_repr(self):
         return "RRCA"
@@ -1257,6 +1557,17 @@ class RRCA(InstructionWithNoParam):
             return "cFlag = !!(r[A] & 0x01); r[A] = (r[A] >> 1) | (r[A] << 7);"
         else:
             super(RRCA, self).to_javascript()
+
+
+class SBC_A_R(InstructionWithReg, InstructionWithNoParam):
+    def asm_repr(self):
+        return "SBC A,%s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg, 'cFlag'}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class SBC_HL_RR(InstructionWithRegPair, ExtendedInstructionWithNoParam):
@@ -1275,6 +1586,21 @@ class SBC_HL_RR(InstructionWithRegPair, ExtendedInstructionWithNoParam):
             return "tmp = rp[HL] - rp[%s] - cFlag; rp[HL] = tmp; cFlag = (tmp < 0);" % self.reg_pair
         else:
             super(SBC_HL_RR, self).to_javascript()
+
+
+class SET_N_iIXIYpNi(InstructionWithBitAndRegPair, DoubleExtendedInstructionWithOffsetParam):
+    def asm_repr(self):
+        if self.offset < 0:
+            return "SET %d,(%s-0x%02x)" % (self.bit, self.reg_pair, -self.offset)
+        else:
+            return "SET %d,(%s+0x%02x)" % (self.bit, self.reg_pair, self.offset)
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {h, l}
+
+    overwrites = set()
 
 
 class SET_N_iHLi(InstructionWithBit, ExtendedInstructionWithNoParam):
@@ -1307,6 +1633,32 @@ class SET_N_R(InstructionWithBitAndReg, ExtendedInstructionWithNoParam):
             super(SET_N_R, self).to_javascript()
 
 
+class SRA_R(InstructionWithReg, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "SRA %s" % self.reg
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+
+class SRL_R(InstructionWithReg, ExtendedInstructionWithNoParam):
+    def asm_repr(self):
+        return "SRL %s" % self.reg
+
+    @property
+    def uses(self):
+        return {self.reg}
+
+    @property
+    def overwrites(self):
+        return {self.reg, 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+
 class SUB_N(InstructionWithByteParam):
     def asm_repr(self):
         return "SUB 0x%02x" % self.param
@@ -1319,6 +1671,38 @@ class SUB_N(InstructionWithByteParam):
             return "r[A] -= 0x%02x;" % self.param
         else:
             super(SUB_N, self).to_javascript()
+
+
+class SUB_R(InstructionWithReg, InstructionWithNoParam):
+    def asm_repr(self):
+        return "SUB %s" % self.reg
+
+    @property
+    def uses(self):
+        return {'A', self.reg}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
+
+    def to_javascript(self):
+        if self.used_results == {'A'}:
+            return "r[A] -= r[%s];" % self.reg
+        else:
+            super(SUB_R, self).to_javascript()
+
+
+class XOR_iIXIYpNi(InstructionWithRegPair, ExtendedInstructionWithOffsetParam):
+    def asm_repr(self):
+        if self.offset < 0:
+            return "XOR (%s-0x%02x)" % (self.reg_pair, -self.offset)
+        else:
+            return "XOR (%s+0x%02x)" % (self.reg_pair, self.offset)
+
+    @property
+    def uses(self):
+        h, l = REGS_FROM_PAIR[self.reg_pair]
+        return {'A', h, l}
+
+    overwrites = {'A', 'cFlag', 'zFlag', 'pvFlag', 'sFlag'}
 
 
 class XOR_R(InstructionWithReg, InstructionWithNoParam):
@@ -1350,13 +1734,47 @@ INSTRUCTIONS_BY_CB_OPCODE = {
 
     0x07: partial(RLC_R, 'A'),
 
+    0x10: partial(RL_R, 'B'),
+    0x11: partial(RL_R, 'C'),
+    0x12: partial(RL_R, 'D'),
+    0x13: partial(RL_R, 'E'),
+    0x14: partial(RL_R, 'H'),
+    0x15: partial(RL_R, 'L'),
+
+    0x17: partial(RL_R, 'A'),
+    0x18: partial(RR_R, 'B'),
+    0x19: partial(RR_R, 'C'),
+    0x1a: partial(RR_R, 'D'),
+    0x1b: partial(RR_R, 'E'),
+    0x1c: partial(RR_R, 'H'),
+    0x1d: partial(RR_R, 'L'),
+
+    0x1f: partial(RR_R, 'A'),
+
+    0x28: partial(SRA_R, 'B'),
+    0x29: partial(SRA_R, 'C'),
+    0x2a: partial(SRA_R, 'D'),
+    0x2b: partial(SRA_R, 'E'),
+    0x2c: partial(SRA_R, 'H'),
+    0x2d: partial(SRA_R, 'L'),
+
+    0x2f: partial(SRA_R, 'A'),
+
+    0x38: partial(SRL_R, 'B'),
+    0x39: partial(SRL_R, 'C'),
+    0x3a: partial(SRL_R, 'D'),
+    0x3b: partial(SRL_R, 'E'),
+    0x3c: partial(SRL_R, 'H'),
+    0x3d: partial(SRL_R, 'L'),
+
+    0x3f: partial(SRL_R, 'A'),
     0x40: partial(BIT_N_R, 0, 'B'),
     0x41: partial(BIT_N_R, 0, 'C'),
     0x42: partial(BIT_N_R, 0, 'D'),
     0x43: partial(BIT_N_R, 0, 'E'),
     0x44: partial(BIT_N_R, 0, 'H'),
     0x45: partial(BIT_N_R, 0, 'L'),
-
+    0x46: partial(BIT_N_iHLi, 0),
     0x47: partial(BIT_N_R, 0, 'A'),
     0x48: partial(BIT_N_R, 1, 'B'),
     0x49: partial(BIT_N_R, 1, 'C'),
@@ -1364,7 +1782,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x4b: partial(BIT_N_R, 1, 'E'),
     0x4c: partial(BIT_N_R, 1, 'H'),
     0x4d: partial(BIT_N_R, 1, 'L'),
-
+    0x4e: partial(BIT_N_iHLi, 1),
     0x4f: partial(BIT_N_R, 1, 'A'),
     0x50: partial(BIT_N_R, 2, 'B'),
     0x51: partial(BIT_N_R, 2, 'C'),
@@ -1372,7 +1790,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x53: partial(BIT_N_R, 2, 'E'),
     0x54: partial(BIT_N_R, 2, 'H'),
     0x55: partial(BIT_N_R, 2, 'L'),
-
+    0x56: partial(BIT_N_iHLi, 2),
     0x57: partial(BIT_N_R, 2, 'A'),
     0x58: partial(BIT_N_R, 3, 'B'),
     0x59: partial(BIT_N_R, 3, 'C'),
@@ -1380,7 +1798,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x5b: partial(BIT_N_R, 3, 'E'),
     0x5c: partial(BIT_N_R, 3, 'H'),
     0x5d: partial(BIT_N_R, 3, 'L'),
-
+    0x5e: partial(BIT_N_iHLi, 3),
     0x5f: partial(BIT_N_R, 3, 'A'),
     0x60: partial(BIT_N_R, 4, 'B'),
     0x61: partial(BIT_N_R, 4, 'C'),
@@ -1388,7 +1806,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x63: partial(BIT_N_R, 4, 'E'),
     0x64: partial(BIT_N_R, 4, 'H'),
     0x65: partial(BIT_N_R, 4, 'L'),
-
+    0x66: partial(BIT_N_iHLi, 4),
     0x67: partial(BIT_N_R, 4, 'A'),
     0x68: partial(BIT_N_R, 5, 'B'),
     0x69: partial(BIT_N_R, 5, 'C'),
@@ -1396,7 +1814,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x6b: partial(BIT_N_R, 5, 'E'),
     0x6c: partial(BIT_N_R, 5, 'H'),
     0x6d: partial(BIT_N_R, 5, 'L'),
-
+    0x6e: partial(BIT_N_iHLi, 5),
     0x6f: partial(BIT_N_R, 5, 'A'),
     0x70: partial(BIT_N_R, 6, 'B'),
     0x71: partial(BIT_N_R, 6, 'C'),
@@ -1404,7 +1822,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x73: partial(BIT_N_R, 6, 'E'),
     0x74: partial(BIT_N_R, 6, 'H'),
     0x75: partial(BIT_N_R, 6, 'L'),
-
+    0x76: partial(BIT_N_iHLi, 6),
     0x77: partial(BIT_N_R, 6, 'A'),
     0x78: partial(BIT_N_R, 7, 'B'),
     0x79: partial(BIT_N_R, 7, 'C'),
@@ -1412,7 +1830,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x7b: partial(BIT_N_R, 7, 'E'),
     0x7c: partial(BIT_N_R, 7, 'H'),
     0x7d: partial(BIT_N_R, 7, 'L'),
-
+    0x7e: partial(BIT_N_iHLi, 7),
     0x7f: partial(BIT_N_R, 7, 'A'),
     0x80: partial(RES_N_R, 0, 'B'),
     0x81: partial(RES_N_R, 0, 'C'),
@@ -1420,7 +1838,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x83: partial(RES_N_R, 0, 'E'),
     0x84: partial(RES_N_R, 0, 'H'),
     0x85: partial(RES_N_R, 0, 'L'),
-
+    0x86: partial(RES_N_iHLi, 0),
     0x87: partial(RES_N_R, 0, 'A'),
     0x88: partial(RES_N_R, 1, 'B'),
     0x89: partial(RES_N_R, 1, 'C'),
@@ -1428,7 +1846,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x8b: partial(RES_N_R, 1, 'E'),
     0x8c: partial(RES_N_R, 1, 'H'),
     0x8d: partial(RES_N_R, 1, 'L'),
-
+    0x8e: partial(RES_N_iHLi, 1),
     0x8f: partial(RES_N_R, 1, 'A'),
     0x90: partial(RES_N_R, 2, 'B'),
     0x91: partial(RES_N_R, 2, 'C'),
@@ -1436,7 +1854,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x93: partial(RES_N_R, 2, 'E'),
     0x94: partial(RES_N_R, 2, 'H'),
     0x95: partial(RES_N_R, 2, 'L'),
-
+    0x96: partial(RES_N_iHLi, 2),
     0x97: partial(RES_N_R, 2, 'A'),
     0x98: partial(RES_N_R, 3, 'B'),
     0x99: partial(RES_N_R, 3, 'C'),
@@ -1444,7 +1862,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0x9b: partial(RES_N_R, 3, 'E'),
     0x9c: partial(RES_N_R, 3, 'H'),
     0x9d: partial(RES_N_R, 3, 'L'),
-
+    0x9e: partial(RES_N_iHLi, 3),
     0x9f: partial(RES_N_R, 3, 'A'),
     0xa0: partial(RES_N_R, 4, 'B'),
     0xa1: partial(RES_N_R, 4, 'C'),
@@ -1452,7 +1870,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0xa3: partial(RES_N_R, 4, 'E'),
     0xa4: partial(RES_N_R, 4, 'H'),
     0xa5: partial(RES_N_R, 4, 'L'),
-
+    0xa6: partial(RES_N_iHLi, 4),
     0xa7: partial(RES_N_R, 4, 'A'),
     0xa8: partial(RES_N_R, 5, 'B'),
     0xa9: partial(RES_N_R, 5, 'C'),
@@ -1460,7 +1878,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0xab: partial(RES_N_R, 5, 'E'),
     0xac: partial(RES_N_R, 5, 'H'),
     0xad: partial(RES_N_R, 5, 'L'),
-
+    0xae: partial(RES_N_iHLi, 5),
     0xaf: partial(RES_N_R, 5, 'A'),
     0xb0: partial(RES_N_R, 6, 'B'),
     0xb1: partial(RES_N_R, 6, 'C'),
@@ -1468,7 +1886,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0xb3: partial(RES_N_R, 6, 'E'),
     0xb4: partial(RES_N_R, 6, 'H'),
     0xb5: partial(RES_N_R, 6, 'L'),
-
+    0xb6: partial(RES_N_iHLi, 6),
     0xb7: partial(RES_N_R, 6, 'A'),
     0xb8: partial(RES_N_R, 7, 'B'),
     0xb9: partial(RES_N_R, 7, 'C'),
@@ -1476,7 +1894,7 @@ INSTRUCTIONS_BY_CB_OPCODE = {
     0xbb: partial(RES_N_R, 7, 'E'),
     0xbc: partial(RES_N_R, 7, 'H'),
     0xbd: partial(RES_N_R, 7, 'L'),
-
+    0xbe: partial(RES_N_iHLi, 7),
     0xbf: partial(RES_N_R, 7, 'A'),
     0xc0: partial(SET_N_R, 0, 'B'),
     0xc1: partial(SET_N_R, 0, 'C'),
@@ -1571,6 +1989,38 @@ INSTRUCTIONS_BY_DDFDCB_OPCODE = {
     0x76: partial(BIT_N_iIXIYpNi, 6),
 
     0x7e: partial(BIT_N_iIXIYpNi, 7),
+
+    0x86: partial(RES_N_iIXIYpNi, 0),
+
+    0x8e: partial(RES_N_iIXIYpNi, 1),
+
+    0x96: partial(RES_N_iIXIYpNi, 2),
+
+    0x9e: partial(RES_N_iIXIYpNi, 3),
+
+    0xa6: partial(RES_N_iIXIYpNi, 4),
+
+    0xae: partial(RES_N_iIXIYpNi, 5),
+
+    0xb6: partial(RES_N_iIXIYpNi, 6),
+
+    0xbe: partial(RES_N_iIXIYpNi, 7),
+
+    0xc6: partial(SET_N_iIXIYpNi, 0),
+
+    0xce: partial(SET_N_iIXIYpNi, 1),
+
+    0xd6: partial(SET_N_iIXIYpNi, 2),
+
+    0xde: partial(SET_N_iIXIYpNi, 3),
+
+    0xe6: partial(SET_N_iIXIYpNi, 4),
+
+    0xee: partial(SET_N_iIXIYpNi, 5),
+
+    0xf6: partial(SET_N_iIXIYpNi, 6),
+
+    0xfe: partial(SET_N_iIXIYpNi, 7),
 }
 
 
@@ -1594,6 +2044,9 @@ INSTRUCTIONS_BY_DDFD_OPCODE = {
     0x19: partial(ADD_IXIY_RR, 'DE'),
 
     0x21: LD_IXIY_NN,
+
+    0x25: DEC_IXIYH,
+    0x26: LD_IXIYH_N,
 
     0x2a: LD_IXIY_iNNi,
 
@@ -1622,7 +2075,17 @@ INSTRUCTIONS_BY_DDFD_OPCODE = {
 
     0x7e: partial(LD_R_iIXIYpNi, 'A'),
 
+    0x86: ADD_A_iIXIYpNi,
+
+    0xae: XOR_iIXIYpNi,
+
+    0xb6: OR_iIXIYpNi,
+
     0xcb: get_ddfdcb_instruction,
+
+    0xe1: POP_IXIY,
+
+    0xf9: LD_SP_IXIY,
 }
 
 
@@ -1658,7 +2121,11 @@ INSTRUCTIONS_BY_ED_OPCODE = {
 
     0x69: partial(OUT_iCi_R, 'L'),
 
+    0x73: partial(LD_iNNi_BCDE, 'SP'),
+
     0x79: partial(OUT_iCi_R, 'A'),
+
+    0xa3: OUTI,
 
     0xab: OUTD,
 
@@ -1678,12 +2145,13 @@ def get_ed_instruction(mem, addr):
 
 INSTRUCTIONS_BY_OPCODE = {
     0x01: partial(LD_RR_NN, 'BC'),
-
+    0x02: partial(LD_iRRi_A, 'BC'),
     0x03: partial(INC_RR, 'BC'),
     0x04: partial(INC_R, 'B'),
     0x05: partial(DEC_R, 'B'),
     0x06: partial(LD_R_N, 'B'),
-
+    0x07: RLCA,
+    0x08: EX_AF_AF,
     0x09: partial(ADD_HL_RR, 'BC'),
     0x0a: partial(LD_A_iRRi, 'BC'),
     0x0b: partial(DEC_RR, 'BC'),
@@ -1691,14 +2159,14 @@ INSTRUCTIONS_BY_OPCODE = {
     0x0d: partial(DEC_R, 'C'),
     0x0e: partial(LD_R_N, 'C'),
     0x0f: RRCA,
-
+    0x10: DJNZ_NN,
     0x11: partial(LD_RR_NN, 'DE'),
-
+    0x12: partial(LD_iRRi_A, 'DE'),
     0x13: partial(INC_RR, 'DE'),
     0x14: partial(INC_R, 'D'),
     0x15: partial(DEC_R, 'D'),
     0x16: partial(LD_R_N, 'D'),
-
+    0x17: RLA,
     0x18: JR_NN,
     0x19: partial(ADD_HL_RR, 'DE'),
     0x1a: partial(LD_A_iRRi, 'DE'),
@@ -1706,7 +2174,7 @@ INSTRUCTIONS_BY_OPCODE = {
     0x1c: partial(INC_R, 'E'),
     0x1d: partial(DEC_R, 'E'),
     0x1e: partial(LD_R_N, 'E'),
-
+    0x1f: RRA,
     0x20: partial(JR_C_NN, 'NZ'),
     0x21: partial(LD_RR_NN, 'HL'),
     0x22: LD_iNNi_HL,
@@ -1724,11 +2192,14 @@ INSTRUCTIONS_BY_OPCODE = {
     0x2e: partial(LD_R_N, 'L'),
 
     0x30: partial(JR_C_NN, 'NC'),
-
+    0x31: partial(LD_RR_NN, 'SP'),
     0x32: LD_iNNi_A,
 
-    0x38: partial(JR_C_NN, 'C'),
+    0x34: INC_iHLi,
+    0x35: DEC_iHLi,
 
+    0x38: partial(JR_C_NN, 'C'),
+    0x39: partial(ADD_HL_RR, 'SP'),
     0x3a: LD_A_iNNi,
 
     0x3c: partial(INC_R, 'A'),
@@ -1806,7 +2277,30 @@ INSTRUCTIONS_BY_OPCODE = {
     0x85: partial(ADD_A_R, 'L'),
     0x86: ADD_A_iHLi,
     0x87: partial(ADD_A_R, 'A'),
+    0x88: partial(ADC_A_R, 'B'),
+    0x89: partial(ADC_A_R, 'C'),
+    0x8a: partial(ADC_A_R, 'D'),
+    0x8b: partial(ADC_A_R, 'E'),
+    0x8c: partial(ADC_A_R, 'H'),
+    0x8d: partial(ADC_A_R, 'L'),
 
+    0x8f: partial(ADC_A_R, 'A'),
+    0x90: partial(SUB_R, 'B'),
+    0x91: partial(SUB_R, 'C'),
+    0x92: partial(SUB_R, 'D'),
+    0x93: partial(SUB_R, 'E'),
+    0x94: partial(SUB_R, 'H'),
+    0x95: partial(SUB_R, 'L'),
+
+    0x97: partial(SUB_R, 'A'),
+    0x98: partial(SBC_A_R, 'B'),
+    0x99: partial(SBC_A_R, 'C'),
+    0x9a: partial(SBC_A_R, 'D'),
+    0x9b: partial(SBC_A_R, 'E'),
+    0x9c: partial(SBC_A_R, 'H'),
+    0x9d: partial(SBC_A_R, 'L'),
+
+    0x9f: partial(SBC_A_R, 'A'),
     0xa0: partial(AND_R, 'B'),
     0xa1: partial(AND_R, 'C'),
     0xa2: partial(AND_R, 'D'),
@@ -1831,9 +2325,14 @@ INSTRUCTIONS_BY_OPCODE = {
     0xb5: partial(OR_R, 'L'),
     0xb6: OR_iHLi,
     0xb7: partial(OR_R, 'A'),
-
+    0xb8: partial(CP_R, 'B'),
+    0xb9: partial(CP_R, 'C'),
+    0xba: partial(CP_R, 'D'),
+    0xbb: partial(CP_R, 'E'),
+    0xbc: partial(CP_R, 'H'),
+    0xbd: partial(CP_R, 'L'),
     0xbe: CP_iHLi,
-
+    0xbf: partial(CP_R, 'A'),
     0xc0: partial(RET_C, 'NZ'),
     0xc1: partial(POP_RR, 'BC'),
     0xc2: partial(JP_C_NN, 'NZ'),
@@ -1848,6 +2347,7 @@ INSTRUCTIONS_BY_OPCODE = {
     0xcb: get_cb_instruction,
     0xcc: partial(CALL_C_NN, 'Z'),
     0xcd: CALL_NN,
+    0xce: ADC_A_N,
 
     0xd0: partial(RET_C, 'NC'),
     0xd1: partial(POP_RR, 'DE'),
@@ -1867,7 +2367,7 @@ INSTRUCTIONS_BY_OPCODE = {
     0xe0: partial(RET_C, 'PO'),
     0xe1: partial(POP_RR, 'HL'),
     0xe2: partial(JP_C_NN, 'PO'),
-
+    0xe3: EX_iSPi_HL,
     0xe4: partial(CALL_C_NN, 'PO'),
     0xe5: partial(PUSH_RR, 'HL'),
     0xe6: AND_N,
@@ -1887,7 +2387,7 @@ INSTRUCTIONS_BY_OPCODE = {
     0xf5: partial(PUSH_RR, 'AF'),
 
     0xf8: partial(RET_C, 'M'),
-
+    0xf9: LD_SP_HL,
     0xfa: partial(JP_C_NN, 'M'),
     0xfb: EI,
     0xfc: partial(CALL_C_NN, 'M'),

@@ -435,7 +435,7 @@
 		}
 
 		stcInit();
-		for (var frame = 0; frame < 10000; frame++) {
+		for (var frame = 0; frame < 100000; frame++) {
 			ayRegisters[14] = false;
 			stcPlay();
 			console.log(ayRegisters.slice());

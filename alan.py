@@ -228,18 +228,18 @@ def dump_javascript_with_dependencies(addrs):
 
 
 i = 0x4000
-with open('stc_player.bin', 'rb') as f:
+with open('pt3_player.bin', 'rb') as f:
     for byte in bytearray(f.read()):
         mem[i] = byte
         i += 1
 
-with open('shatners_bassoon.stc', 'rb') as f:
+with open('testfiles/summer_mood.pt3', 'rb') as f:
     for byte in bytearray(f.read()):
         mem[i] = byte
         i += 1
 
 trace_routine(0x4000)
-trace_routine(0x4006)
+trace_routine(0x4005)
 
 log("Trace complete.")
 

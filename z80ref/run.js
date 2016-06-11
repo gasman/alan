@@ -42,7 +42,7 @@ fs.readFile(process.argv[2], function(err, stc) {
 	/* init player */
 	var count = z80.runRoutine(0x4000, 0x3f00);
 
-	for (var frame = 0; frame < 10000; frame++) {
+	for (var frame = 0; frame < 100000; frame++) {
 		ayRegisters[14] = false;
 		count = z80.runRoutine(0x4006, 0x3f00);
 		console.log(ayRegisters.slice());
