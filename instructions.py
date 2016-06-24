@@ -1218,7 +1218,7 @@ class LDIR(ExtendedInstructionWithNoParam):
     overwrites = {'B', 'C', 'D', 'E', 'H', 'L', 'pvFlag'}
 
     def to_javascript(self):
-        if self.used_results == set():
+        if 'pvFlag' not in self.used_results:
             return "while(true) {mem[rp[DE]] = mem[rp[HL]]; rp[DE]++; rp[HL]++; rp[BC]--; if (rp[BC] === 0) break;}"
         else:
             super(LDIR, self).to_javascript()
@@ -1669,6 +1669,8 @@ class SUB_N(InstructionWithByteParam):
     def to_javascript(self):
         if self.used_results == {'A'}:
             return "r[A] -= 0x%02x;" % self.param
+        elif self.used_results == {'A', 'zFlag'}:
+            return "r[A] -= 0x%02x; zFlag = !r[A];" % self.param
         else:
             super(SUB_N, self).to_javascript()
 
